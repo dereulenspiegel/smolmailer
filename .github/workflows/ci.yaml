@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-versions: ["1.23", "latest"]
+        go-versions: ["1.23", "stable", "latest"]
 
     steps:
       - uses: actions/checkout@v4
@@ -17,5 +17,7 @@ jobs:
           go-version: ${{ matrix.go-version }}
       - name: Install dependencies
         run: go get .
+      - name: Build everything
+        run: go build ./...
       - name: Run tests
         run: go test ./...
