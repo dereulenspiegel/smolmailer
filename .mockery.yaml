@@ -1,0 +1,14 @@
+with-expecter: true
+issue-845-fix: true
+packages:
+  github.com/dereulenspiegel/smol-mailer:
+    # place your package-specific config here
+    config:
+      mockname: "{{.InterfaceName}}Mock"
+      filename: "mock_{{.InterfaceName}}_test.go"
+      inpackage: True
+      dir: "."
+    interfaces:
+      # select the interfaces you want mocked
+      queue:
+      userService:
