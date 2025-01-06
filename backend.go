@@ -10,6 +10,8 @@ import (
 	"net/netip"
 
 	"github.com/emersion/go-smtp"
+	"github.com/go-crypt/crypt"
+	"github.com/go-crypt/crypt/algorithm/pbkdf2"
 )
 
 type queue interface {
@@ -26,6 +28,8 @@ type Backend struct {
 	cfg *Config
 
 	allowedIPNets []*net.IPNet
+
+	passwdDecoder *crypt.Decoder
 }
 
 func (b *Backend) NewSession(conn *smtp.Conn) (smtp.Session, error) {
@@ -37,6 +41,17 @@ func (b *Backend) NewSession(conn *smtp.Conn) (smtp.Session, error) {
 }
 
 func (b *Backend) Authenticate(username, password string) error {
+	user := b.findUserByUsername(username)
+	if user == nil {
+		return fmt.Errorf("user %s is not valid", username)
+	}
+	digest, err := b.passwdDecoder.Decode(user.Password)
+	if err != nil {
+		return fmt.Errorf("invalid password digest for user %s: %w", username, err)
+	}
+	if !digest.Match(password) {
+		return fmt.Errorf("invalid password for user %s", username)
+	}
 	return nil
 }
 
@@ -69,7 +84,10 @@ func (b *Backend) findUserByUsername(username string) *UserConfig {
 }
 
 func NewBackend(q queue, cfg *Config) (*Backend, error) {
-	b := &Backend{q: q, cfg: cfg}
+	b := &Backend{
+		q:   q,
+		cfg: cfg,
+	}
 	for _, netString := range cfg.AllowedIPRanges {
 		_, ipNet, err := net.ParseCIDR(netString)
 		if err != nil {
@@ -77,6 +95,12 @@ func NewBackend(q queue, cfg *Config) (*Backend, error) {
 		}
 		b.allowedIPNets = append(b.allowedIPNets, ipNet)
 	}
+
+	passwdDecoder, err := pbkdf2OnlyDecoder()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create password decoder: %w", err)
+	}
+	b.passwdDecoder = passwdDecoder
 
 	return b, nil
 }
@@ -153,4 +177,12 @@ func (s *Session) Reset() {
 
 func (s *Session) Logout() error {
 	return nil
+}
+
+func pbkdf2OnlyDecoder() (decoder *crypt.Decoder, err error) {
+	decoder = crypt.NewDecoder()
+	if err := pbkdf2.RegisterDecoderSHA512(decoder); err != nil {
+		return nil, err
+	}
+	return decoder, nil
 }
