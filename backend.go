@@ -4,11 +4,13 @@ package smolmailer
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/netip"
 
+	"github.com/emersion/go-sasl"
 	"github.com/emersion/go-smtp"
 	"github.com/go-crypt/crypt"
 	"github.com/go-crypt/crypt/algorithm/pbkdf2"
@@ -111,7 +113,7 @@ type Session struct {
 	ExpectedBodySize int64
 	BodyData         *bytes.Buffer
 
-	sendingUser string
+	authenticatedSubject string
 
 	q       queue
 	userSrv userService
@@ -139,8 +141,8 @@ func (s *Session) Rcpt(to string, opts *smtp.RcptOptions) error {
 }
 
 func (s *Session) Data(r io.Reader) error {
-	if !s.userSrv.IsValidSender(s.sendingUser, s.From) {
-		return fmt.Errorf("user %s is now allowed to send emails as %s", s.sendingUser, s.From)
+	if !s.userSrv.IsValidSender(s.authenticatedSubject, s.From) {
+		return fmt.Errorf("user %s is now allowed to send emails as %s", s.authenticatedSubject, s.From)
 	}
 
 	lr := r
@@ -161,12 +163,21 @@ func (s *Session) Data(r io.Reader) error {
 	return nil
 }
 
-func (s *Session) AuthPlain(username, password string) error {
-	if err := s.userSrv.Authenticate(username, password); err != nil {
-		return fmt.Errorf("failed to authenticate user %s: %w", username, err)
-	}
-	s.sendingUser = username
-	return nil
+func (s *Session) AuthMechanisms() []string {
+	return []string{sasl.Plain}
+}
+
+func (s *Session) Auth(mech string) (sasl.Server, error) {
+	return sasl.NewPlainServer(func(identity, username, password string) error {
+		if identity != "" && identity != username {
+			return errors.New("invalid identity")
+		}
+		if err := s.userSrv.Authenticate(username, password); err != nil {
+			return fmt.Errorf("failed to authenticate user %s: %w", username, err)
+		}
+		s.authenticatedSubject = username
+		return nil
+	}), nil
 }
 
 func (s *Session) Reset() {

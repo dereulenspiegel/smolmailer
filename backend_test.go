@@ -54,14 +54,13 @@ func TestSessionQueuesSuccessfully(t *testing.T) {
 	q := newQueueMock(t)
 	usrSrv := newUserServiceMock(t)
 
-	usrSrv.On("Authenticate", "validUser", "foo").Return(nil)
 	usrSrv.On("IsValidSender", "validUser", "valid@example.com").Return(true)
 
 	sess := NewSession(q, usrSrv)
 
 	q.On("QueueSession", sess).Return(nil)
 
-	require.NoError(t, sess.AuthPlain("validUser", "foo"))
+	sess.authenticatedSubject = "validUser" // Pretend we went through authentication
 	require.NoError(t, sess.Mail("valid@example.com", &smtp.MailOptions{}))
 	require.NoError(t, sess.Rcpt("valid@example.com", &smtp.RcptOptions{}))
 	require.NoError(t, sess.Data(bytes.NewBufferString("test")))
