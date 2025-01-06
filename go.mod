@@ -1,4 +1,4 @@
-module github.com/dereulenspiegel/smol-mailer
+module github.com/dereulenspiegel/smolmailer
 
 go 1.23.3
 
