@@ -13,6 +13,7 @@ import (
 	"github.com/emersion/go-sasl"
 	"github.com/emersion/go-smtp"
 	"github.com/go-crypt/crypt"
+	"github.com/go-crypt/crypt/algorithm"
 	"github.com/go-crypt/crypt/algorithm/pbkdf2"
 )
 
@@ -63,6 +64,9 @@ func (b *Backend) IsValidSender(username, from string) bool {
 }
 
 func (b *Backend) isValidRemoteAddr(remoteAddr net.Addr) bool {
+	if len(b.allowedIPNets) == 0 {
+		return true
+	}
 	addPrt, err := netip.ParseAddrPort(remoteAddr.String())
 	if err != nil {
 		return false
@@ -196,4 +200,16 @@ func pbkdf2OnlyDecoder() (decoder *crypt.Decoder, err error) {
 		return nil, err
 	}
 	return decoder, nil
+}
+
+func pbkdf2OnlyHasher() (algorithm.Hash, error) {
+	return pbkdf2.NewSHA512()
+}
+
+func encodePassword(password string, hasher algorithm.Hash) (string, error) {
+	hash, err := hasher.Hash(password)
+	if err != nil {
+		return "", err
+	}
+	return algorithm.Digest.Encode(hash), nil
 }
