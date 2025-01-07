@@ -2,6 +2,7 @@ package smolmailer
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"testing"
 	"time"
@@ -43,20 +44,22 @@ func TestSendMail(t *testing.T) {
 	b, err := NewBackend(q, cfg)
 	require.NoError(t, err)
 
+	tcpListener, err := net.Listen("tcp", "[::1]:0")
+	require.NoError(t, err)
+
 	s := smtp.NewServer(b)
 	s.Domain = cfg.Domain
-	s.AllowInsecureAuth = true
-	s.Addr = cfg.ListenAddr
+	s.AllowInsecureAuth = true // Only for testing
 	s.ErrorLog = &serverDebugLogger{}
 	s.Debug = os.Stdout
 	defer s.Close()
 	go func() {
-		if err := s.ListenAndServe(); err != nil {
+		if err := s.Serve(tcpListener); err != nil {
 			panic(err)
 		}
 	}()
 	time.Sleep(time.Millisecond * 1000)
-	client, err := smtp.Dial(cfg.ListenAddr)
+	client, err := smtp.Dial(tcpListener.Addr().String())
 	require.NoError(t, err)
 	require.NoError(t, client.Hello("local.example.com"))
 	require.NoError(t, client.Auth(sasl.NewPlainClient("test", "test", "example")))
