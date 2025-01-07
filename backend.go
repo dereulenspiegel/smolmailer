@@ -132,7 +132,14 @@ func NewSession(q queue, userSrv userService) *Session {
 }
 
 func (s *Session) Mail(from string, opts *smtp.MailOptions) error {
-	s.From = from // TODO verify from address
+	s.From = from
+	if s.authenticatedSubject == "" {
+		return fmt.Errorf("not authenticated")
+	}
+
+	if !s.userSrv.IsValidSender(s.authenticatedSubject, s.From) {
+		return fmt.Errorf("user %s is now allowed to send emails as %s", s.authenticatedSubject, s.From)
+	}
 	if opts != nil {
 		s.ExpectedBodySize = opts.Size
 	}
@@ -145,9 +152,6 @@ func (s *Session) Rcpt(to string, opts *smtp.RcptOptions) error {
 }
 
 func (s *Session) Data(r io.Reader) error {
-	if !s.userSrv.IsValidSender(s.authenticatedSubject, s.From) {
-		return fmt.Errorf("user %s is now allowed to send emails as %s", s.authenticatedSubject, s.From)
-	}
 
 	lr := r
 	if s.ExpectedBodySize > 0 {
