@@ -7,6 +7,7 @@ import (
 
 	"github.com/emersion/go-smtp"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -51,14 +52,16 @@ func TestValidateIPRange(t *testing.T) {
 }
 
 func TestSessionQueuesSuccessfully(t *testing.T) {
-	q := newQueueMock(t)
+	q := newBackendQueueMock(t)
 	usrSrv := newUserServiceMock(t)
 
 	usrSrv.On("IsValidSender", "validUser", "valid@example.com").Return(true)
 
 	sess := NewSession(q, usrSrv)
 
-	q.On("QueueSession", sess).Return(nil)
+	q.On("QueueMessage", mock.MatchedBy(func(msg *QueuedMessage) bool {
+		return msg.From == "valid@example.com" && msg.To[0] == "valid@example.com" && string(msg.Body) == "test"
+	})).Return(nil)
 
 	sess.authenticatedSubject = "validUser" // Pretend we went through authentication
 	require.NoError(t, sess.Mail("valid@example.com", &smtp.MailOptions{}))

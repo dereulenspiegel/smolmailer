@@ -1,7 +1,7 @@
 with-expecter: true
 issue-845-fix: true
 packages:
-  github.com/dereulenspiegel/smol-mailer:
+  github.com/dereulenspiegel/smolmailer:
     # place your package-specific config here
     config:
       mockname: "{{.InterfaceName}}Mock"
@@ -10,5 +10,6 @@ packages:
       dir: "."
     interfaces:
       # select the interfaces you want mocked
-      queue:
+      backendQueue:
       userService:
+      senderQueue:

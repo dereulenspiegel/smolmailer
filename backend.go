@@ -3,12 +3,12 @@
 package smolmailer
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/netip"
+	"time"
 
 	"github.com/emersion/go-sasl"
 	"github.com/emersion/go-smtp"
@@ -17,8 +17,8 @@ import (
 	"github.com/go-crypt/crypt/algorithm/pbkdf2"
 )
 
-type queue interface {
-	QueueSession(s *Session) error
+type backendQueue interface {
+	QueueMessage(msg *QueuedMessage) error
 }
 
 type userService interface {
@@ -27,7 +27,7 @@ type userService interface {
 }
 
 type Backend struct {
-	q   queue
+	q   backendQueue
 	cfg *Config
 
 	allowedIPNets []*net.IPNet
@@ -89,7 +89,7 @@ func (b *Backend) findUserByUsername(username string) *UserConfig {
 	return nil
 }
 
-func NewBackend(q queue, cfg *Config) (*Backend, error) {
+func NewBackend(q backendQueue, cfg *Config) (*Backend, error) {
 	b := &Backend{
 		q:   q,
 		cfg: cfg,
@@ -111,34 +111,43 @@ func NewBackend(q queue, cfg *Config) (*Backend, error) {
 	return b, nil
 }
 
+type QueuedMessage struct {
+	From string
+	To   []string
+	Body []byte
+
+	ReceivedAt          time.Time
+	LastDeliveryAttempt time.Time
+	ErrorCount          int
+	LastErr             error
+}
+
 type Session struct {
-	From             string
-	To               []string
+	Msg              *QueuedMessage
 	ExpectedBodySize int64
-	BodyData         *bytes.Buffer
 
 	authenticatedSubject string
 
-	q       queue
+	q       backendQueue
 	userSrv userService
 }
 
-func NewSession(q queue, userSrv userService) *Session {
+func NewSession(q backendQueue, userSrv userService) *Session {
 	return &Session{
-		BodyData: &bytes.Buffer{},
-		userSrv:  userSrv,
-		q:        q,
+		Msg:     &QueuedMessage{},
+		userSrv: userSrv,
+		q:       q,
 	}
 }
 
 func (s *Session) Mail(from string, opts *smtp.MailOptions) error {
-	s.From = from
+	s.Msg.From = from
 	if s.authenticatedSubject == "" {
 		return fmt.Errorf("not authenticated")
 	}
 
-	if !s.userSrv.IsValidSender(s.authenticatedSubject, s.From) {
-		return fmt.Errorf("user %s is now allowed to send emails as %s", s.authenticatedSubject, s.From)
+	if !s.userSrv.IsValidSender(s.authenticatedSubject, s.Msg.From) {
+		return fmt.Errorf("user %s is now allowed to send emails as %s", s.authenticatedSubject, s.Msg.From)
 	}
 	if opts != nil {
 		s.ExpectedBodySize = opts.Size
@@ -147,25 +156,26 @@ func (s *Session) Mail(from string, opts *smtp.MailOptions) error {
 }
 
 func (s *Session) Rcpt(to string, opts *smtp.RcptOptions) error {
-	s.To = append(s.To, to)
+	s.Msg.To = append(s.Msg.To, to)
 	return nil
 }
 
-func (s *Session) Data(r io.Reader) error {
+func (s *Session) Data(r io.Reader) (err error) {
 
 	lr := r
 	if s.ExpectedBodySize > 0 {
 		lr = io.LimitReader(r, s.ExpectedBodySize)
 	}
-	n, err := s.BodyData.ReadFrom(lr)
-	if s.ExpectedBodySize > 0 && n != s.ExpectedBodySize {
+	s.Msg.Body, err = io.ReadAll(lr)
+	n := len(s.Msg.Body)
+	if s.ExpectedBodySize > 0 && int64(n) != s.ExpectedBodySize {
 		return fmt.Errorf("read only %d body bytes, but expected %d bytes", n, s.ExpectedBodySize)
 	}
 	if err != nil {
 		return fmt.Errorf("failed to read message body: %w", err)
 	}
 
-	if err := s.q.QueueSession(s); err != nil {
+	if err := s.q.QueueMessage(s.Msg); err != nil {
 		return fmt.Errorf("failed to queue message: %w", err)
 	}
 	return nil
@@ -189,9 +199,7 @@ func (s *Session) Auth(mech string) (sasl.Server, error) {
 }
 
 func (s *Session) Reset() {
-	s.To = nil
-	s.From = ""
-	s.BodyData = &bytes.Buffer{}
+	s.Msg = &QueuedMessage{}
 }
 
 func (s *Session) Logout() error {

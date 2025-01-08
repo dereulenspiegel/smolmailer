@@ -13,6 +13,7 @@ type UserConfig struct {
 type Config struct {
 	Domain          string
 	ListenAddr      string
+	QueuePath       string
 	Users           []*UserConfig
 	AllowedIPRanges []string
 }
