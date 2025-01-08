@@ -111,9 +111,29 @@ func NewBackend(q backendQueue, cfg *Config) (*Backend, error) {
 	return b, nil
 }
 
-type QueuedMessage struct {
+type ReceivedMessage struct {
 	From string
 	To   []string
+	Body []byte
+}
+
+func (r *ReceivedMessage) QueuedMessages() (msgs []*QueuedMessage) {
+	receivedAt := time.Now()
+	for _, to := range r.To {
+		msgs = append(msgs, &QueuedMessage{
+			From:       r.From,
+			To:         to,
+			Body:       r.Body,
+			ReceivedAt: receivedAt,
+			ErrorCount: 0,
+		})
+	}
+	return msgs
+}
+
+type QueuedMessage struct {
+	From string
+	To   string
 	Body []byte
 
 	ReceivedAt          time.Time
@@ -123,7 +143,7 @@ type QueuedMessage struct {
 }
 
 type Session struct {
-	Msg              *QueuedMessage
+	Msg              *ReceivedMessage
 	ExpectedBodySize int64
 
 	authenticatedSubject string
@@ -134,7 +154,7 @@ type Session struct {
 
 func NewSession(q backendQueue, userSrv userService) *Session {
 	return &Session{
-		Msg:     &QueuedMessage{},
+		Msg:     &ReceivedMessage{},
 		userSrv: userSrv,
 		q:       q,
 	}
@@ -175,9 +195,12 @@ func (s *Session) Data(r io.Reader) (err error) {
 		return fmt.Errorf("failed to read message body: %w", err)
 	}
 
-	if err := s.q.QueueMessage(s.Msg); err != nil {
-		return fmt.Errorf("failed to queue message: %w", err)
+	for _, msg := range s.Msg.QueuedMessages() {
+		if err := s.q.QueueMessage(msg); err != nil {
+			return fmt.Errorf("failed to queue message: %w", err)
+		}
 	}
+
 	return nil
 }
 
@@ -199,7 +222,7 @@ func (s *Session) Auth(mech string) (sasl.Server, error) {
 }
 
 func (s *Session) Reset() {
-	s.Msg = &QueuedMessage{}
+	s.Msg = &ReceivedMessage{}
 }
 
 func (s *Session) Logout() error {
