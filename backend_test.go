@@ -60,7 +60,7 @@ func TestSessionQueuesSuccessfully(t *testing.T) {
 	sess := NewSession(q, usrSrv)
 
 	q.On("QueueMessage", mock.MatchedBy(func(msg *QueuedMessage) bool {
-		return msg.From == "valid@example.com" && msg.To[0] == "valid@example.com" && string(msg.Body) == "test"
+		return msg.From == "valid@example.com" && msg.To == "valid@example.com" && string(msg.Body) == "test"
 	})).Return(nil)
 
 	sess.authenticatedSubject = "validUser" // Pretend we went through authentication
