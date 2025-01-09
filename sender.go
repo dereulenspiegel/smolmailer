@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"slices"
 	"strings"
@@ -23,28 +24,30 @@ type senderQueue interface {
 	Receive() (*QueuedMessage, error)
 }
 
-type smtpForwarder interface {
-	Send(*Session) error
-}
-
 type Sender struct {
 	cfg        *Config
 	q          senderQueue
 	retryQueue *dque.DQue
+	logger     *slog.Logger
 
 	ctx       context.Context
 	ctxCancel context.CancelFunc
 
 	retryCancel context.CancelFunc
+
+	mxResolver func(string) ([]*net.MX, error)
+	mxPorts    []int
 }
 
-func NewSender(ctx context.Context, cfg *Config, q senderQueue) (*Sender, error) {
+func NewSender(ctx context.Context, logger *slog.Logger, cfg *Config, q senderQueue) (*Sender, error) {
 	bCtx, cancel := context.WithCancel(ctx)
 	retryCtx, retryCancel := context.WithCancel(ctx)
 	retryQueue, err := dque.NewOrOpen(retryQueueName, cfg.QueuePath, 50, func() interface{} {
 		return &QueuedMessage{}
 	})
 	if err != nil {
+		cancel()
+		retryCancel()
 		return nil, fmt.Errorf("failed to create retry queue: %w", err)
 	}
 	s := &Sender{
@@ -54,6 +57,9 @@ func NewSender(ctx context.Context, cfg *Config, q senderQueue) (*Sender, error)
 		q:           q,
 		retryQueue:  retryQueue,
 		cfg:         cfg,
+		mxResolver:  lookupMX,
+		logger:      logger,
+		mxPorts:     []int{465, 587, 25},
 	}
 	go s.run()
 	go s.runRetry(retryCtx)
@@ -111,8 +117,10 @@ func (s *Sender) trySend(msg *QueuedMessage) {
 }
 
 func (s *Sender) dialHost(host string) (c *smtp.Client, err error) {
+	logger := s.logger.With("host", host)
 	errs := []error{}
-	for _, port := range []int{587, 465, 25} {
+	for _, port := range s.mxPorts {
+		logger := logger.With("port", port)
 		address := fmt.Sprintf("%s:%d", host, port)
 		tlsConfig := &tls.Config{ServerName: host}
 
@@ -122,6 +130,7 @@ func (s *Sender) dialHost(host string) (c *smtp.Client, err error) {
 				//SMTPS
 				c, err = smtp.DialTLS(address, tlsConfig)
 				if err != nil {
+					logger.Error("failed to dial tls", "err", err)
 					errs = append(errs, err)
 					continue
 				}
@@ -129,6 +138,7 @@ func (s *Sender) dialHost(host string) (c *smtp.Client, err error) {
 		case 587:
 			c, err = smtp.DialStartTLS(address, &tls.Config{ServerName: host})
 			if err != nil {
+				logger.Error("failed to dial start tls", "err", err)
 				errs = append(errs, err)
 				continue
 			}
@@ -136,9 +146,21 @@ func (s *Sender) dialHost(host string) (c *smtp.Client, err error) {
 			c, err = smtp.Dial(address)
 
 			if err != nil {
+				logger.Error("failed to dial smtp", "err", err)
 				errs = append(errs, err)
 				continue
 			}
+		default:
+			// Assume smtp for testing
+			c, err = smtp.Dial(address)
+			if err != nil {
+				logger.Error("failed to dial smtp", "err", err)
+				errs = append(errs, err)
+				continue
+			}
+		}
+		if c != nil {
+			return c, nil
 		}
 	}
 	err = errors.Join(errs...)
@@ -148,42 +170,46 @@ func (s *Sender) dialHost(host string) (c *smtp.Client, err error) {
 func (s *Sender) smtpDialog(c *smtp.Client, msg *QueuedMessage) error {
 	if err := c.Hello(s.cfg.Domain); err != nil {
 		c.Close()
-		return err
+		return fmt.Errorf("hello cmd failed: %w", err)
 	}
 
 	if err := c.Mail(msg.From, &smtp.MailOptions{
-		RequireTLS: true,
+		RequireTLS: false,
 	}); err != nil {
 		c.Close()
-		return err
+		return fmt.Errorf("mail cmd failed: %w", err)
 	}
 
 	if err := c.Rcpt(msg.To, &smtp.RcptOptions{}); err != nil {
 		c.Close()
-		return err
+		return fmt.Errorf("rcpt cmd failed: %w", err)
 	}
 
 	if w, err := c.Data(); err != nil {
 		c.Close()
-		return err
+		return fmt.Errorf("data cmd failed: %w", err)
 	} else {
 		if n, err := w.Write(msg.Body); err != nil {
+			w.Close()
 			c.Close()
 			return err
 		} else if n != len(msg.Body) {
 			// TODO define error
+			w.Close()
 			c.Close()
 			return fmt.Errorf("failed to write all data")
 		}
+		w.Close()
 	}
 	return c.Quit()
 }
 
 func (s *Sender) sendMail(msg *QueuedMessage) error {
+	logger := s.logger.With("func", "sendMail", "to", msg.To, "from", msg.From)
 	msg.LastDeliveryAttempt = time.Now()
 	domain := strings.Split(msg.To, "@")[1]
 
-	mxRecords, err := lookupMX(domain)
+	mxRecords, err := s.mxResolver(domain)
 	if err != nil {
 		return err
 	}
@@ -196,11 +222,12 @@ func (s *Sender) sendMail(msg *QueuedMessage) error {
 
 		c, err := s.dialHost(host)
 		if err != nil {
-			// TODO log error
+			logger.Error("failed to dial host", "err", err)
 			continue
 		}
 
 		if err := s.smtpDialog(c, msg); err != nil {
+			logger.Error("smtp dialog failed", "err", err)
 			continue
 		}
 
