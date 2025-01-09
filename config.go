@@ -22,6 +22,7 @@ func ConfigDefaults() {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath("/config")
+	viper.AddConfigPath("/.")
 
 	viper.SetEnvPrefix("SMOLMAILER")
 	viper.AutomaticEnv()

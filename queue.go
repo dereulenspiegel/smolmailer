@@ -31,6 +31,14 @@ func (d *DQeue) QueueMessage(msg *QueuedMessage) error {
 	return d.q.Enqueue(msg)
 }
 
+func (d *DQeue) Receive() (*QueuedMessage, error) {
+	item, err := d.q.Dequeue()
+	if err != nil {
+		return nil, err
+	}
+	return item.(*QueuedMessage), nil
+}
+
 func (d *DQeue) Close() error {
 	return d.q.Close()
 }
