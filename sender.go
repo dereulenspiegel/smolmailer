@@ -229,6 +229,7 @@ func (s *Sender) dialHost(host string) (c *smtp.Client, err error) {
 
 		}
 		if c != nil {
+			c.SubmissionTimeout = time.Second * 10
 			return c, nil
 		}
 	}
