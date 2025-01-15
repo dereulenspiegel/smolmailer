@@ -2,7 +2,10 @@ package acme
 
 import (
 	"bytes"
-	"crypto/ed25519"
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -38,28 +41,29 @@ func TestInMemoryGetCertificateForDomain(t *testing.T) {
 }
 
 func TestAddCertificate(t *testing.T) {
-	testCert, err := generateTestCertificate()
+	domainPrivateKey, testCert, err := generateTestCertificate()
 	require.NoError(t, err)
 
 	c := NewInMemoryCache()
-	err = c.AddCertificate(testCert)
+	err = c.AddCertificate(testCert, domainPrivateKey)
 	require.NoError(t, err)
 
 	certMain, err := c.GetCertForDomain("example.com")
 	require.NoError(t, err)
 	assert.NotNil(t, certMain)
+	assert.NotNil(t, certMain.PrivateKey)
 	parsedCert, err := x509.ParseCertificate(certMain.Certificate[0])
 	require.NoError(t, err)
 	assert.Contains(t, parsedCert.DNSNames, "example.com")
 }
 
 func TestCleanExpiredCertificates(t *testing.T) {
-	testCert, err := generateTestCertificate(func(cert *x509.Certificate) {
+	domainPrivateKey, testCert, err := generateTestCertificate(func(cert *x509.Certificate) {
 		cert.NotAfter = time.Now().Add(time.Minute * -1)
 	})
 	require.NoError(t, err)
 	c := NewInMemoryCache()
-	err = c.AddCertificate(testCert)
+	err = c.AddCertificate(testCert, domainPrivateKey)
 	require.NoError(t, err)
 
 	retrievedCert, err := c.GetCertForDomain("example.com")
@@ -74,10 +78,10 @@ func TestCleanExpiredCertificates(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func generateTestCertificate(fTemplate ...func(*x509.Certificate)) ([]byte, error) {
-	_, privateKey, err := ed25519.GenerateKey(nil)
+func generateTestCertificate(fTemplate ...func(*x509.Certificate)) (crypto.PrivateKey, []byte, error) {
+	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	template := x509.Certificate{
 		SerialNumber:          big.NewInt(42),
@@ -92,10 +96,10 @@ func generateTestCertificate(fTemplate ...func(*x509.Certificate)) ([]byte, erro
 	for _, f := range fTemplate {
 		f(&template)
 	}
-	publicKey := privateKey.Public().(ed25519.PublicKey)
-	certDER, err := x509.CreateCertificate(nil, &template, &template, publicKey, privateKey)
+	publicKey := privateKey.Public()
+	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, publicKey, privateKey)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	buf := &bytes.Buffer{}
 	err = pem.Encode(buf, &pem.Block{
@@ -103,7 +107,7 @@ func generateTestCertificate(fTemplate ...func(*x509.Certificate)) ([]byte, erro
 		Bytes: certDER,
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return buf.Bytes(), nil
+	return privateKey, buf.Bytes(), nil
 }

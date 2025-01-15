@@ -2,6 +2,8 @@ package acme
 
 import (
 	"bytes"
+	"crypto"
+	"crypto/ecdsa"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
@@ -39,7 +41,7 @@ func (i *inMemoryCertCache) GetCertForDomain(domain string) (*tls.Certificate, e
 	return nil, errors.New("no matching cert found")
 }
 
-func (i *inMemoryCertCache) AddCertificate(pemData []byte) error {
+func (i *inMemoryCertCache) AddCertificate(pemData []byte, privateKey crypto.PrivateKey) error {
 	i.lock.Lock()
 	defer i.lock.Unlock()
 	certs := []*x509.Certificate{}
@@ -58,7 +60,9 @@ func (i *inMemoryCertCache) AddCertificate(pemData []byte) error {
 	}
 
 	dnsNames := []string{}
-	tlsCert := &tls.Certificate{}
+	tlsCert := &tls.Certificate{
+		PrivateKey: privateKey,
+	}
 	for _, cert := range certs {
 		dnsNames = append(dnsNames, cert.DNSNames...)
 		tlsCert.Certificate = append(tlsCert.Certificate, cert.Raw)
@@ -71,6 +75,8 @@ func (i *inMemoryCertCache) AddCertificate(pemData []byte) error {
 }
 
 func (i *inMemoryCertCache) CleanupExpired() error {
+	i.lock.Lock()
+	defer i.lock.Unlock()
 	i.certs.Range(func(key any, val any) bool {
 		tlsCert := val.(*tls.Certificate)
 		isExpired := false
@@ -120,15 +126,15 @@ func (f *fileBackedCache) GetCertForDomain(domain string) (*tls.Certificate, err
 	return f.inMemoryCertCache.GetCertForDomain(domain)
 }
 
-func (f *fileBackedCache) AddCertificate(pemData []byte) error {
-	err := f.inMemoryCertCache.AddCertificate(pemData)
+func (f *fileBackedCache) AddCertificate(pemData []byte, privateKey crypto.PrivateKey) error {
+	err := f.inMemoryCertCache.AddCertificate(pemData, privateKey)
 	if err != nil {
 		return err
 	}
 	return f.store()
 }
 
-func (f *fileBackedCache) store() error {
+func (f *fileBackedCache) store() (err error) {
 	f.fileLock.Lock()
 	defer f.fileLock.Unlock()
 	fData := &fileData{
@@ -138,6 +144,16 @@ func (f *fileBackedCache) store() error {
 	f.inMemoryCertCache.certs.Range(func(key any, value any) bool {
 		tlsCert := value.(*tls.Certificate)
 		buf := bytes.NewBuffer([]byte{})
+		privKeyBytes, eerr := derEncodePrivateKey(tlsCert.PrivateKey)
+		if eerr != nil {
+			err = fmt.Errorf("failed to der encode private key for certificate: %s: %w", key, err)
+			// TODO log error
+			return false
+		}
+		pem.Encode(buf, &pem.Block{
+			Type:  pemTypeEcPrivateKey,
+			Bytes: privKeyBytes,
+		})
 		for _, certBytes := range tlsCert.Certificate {
 			pem.Encode(buf, &pem.Block{
 				Type:  "CERTIFICATE",
@@ -149,6 +165,9 @@ func (f *fileBackedCache) store() error {
 		fData.Certificates[domain] = pemData
 		return true
 	})
+	if err != nil {
+		return err
+	}
 
 	fDataBytes, err := json.Marshal(fData)
 	if err != nil {
@@ -176,9 +195,48 @@ func (f *fileBackedCache) Load() error {
 		if err != nil {
 			return fmt.Errorf("failed to decode PEM bytes for domain %s from %s: %w", domain, f.filePath, err)
 		}
-		if err := f.inMemoryCertCache.AddCertificate(pemBytes); err != nil {
+		pemBuf := bytes.NewBuffer([]byte{})
+		var privateKey crypto.PrivateKey
+		for block, rest := pem.Decode(pemBytes); block != nil; block, rest = pem.Decode(rest) {
+			if block.Type == "CERTIFICATE" {
+				pem.Encode(pemBuf, block)
+			} else {
+				privateKey, err = pemDecodePrivateKey(block)
+				if err != nil {
+					return err
+				}
+			}
+		}
+		if err := f.inMemoryCertCache.AddCertificate(pemBuf.Bytes(), privateKey); err != nil {
 			return fmt.Errorf("failed to add certificate for domain %s: %w", f.filePath, err)
 		}
 	}
 	return nil
+}
+
+func (f *fileBackedCache) CleanupExpired() error {
+	f.fileLock.Lock()
+	defer f.fileLock.Unlock()
+	if err := f.inMemoryCertCache.CleanupExpired(); err != nil {
+		return err
+	}
+	return f.store()
+}
+
+func pemDecodePrivateKey(block *pem.Block) (privateKey crypto.PrivateKey, err error) {
+	switch block.Type {
+	case pemTypeEcPrivateKey:
+		return x509.ParseECPrivateKey(block.Bytes)
+	default:
+		return nil, fmt.Errorf("unhandled PEM block type while parsing private key %s", block.Type)
+	}
+}
+
+func derEncodePrivateKey(privateKey crypto.PrivateKey) ([]byte, error) {
+	switch k := privateKey.(type) {
+	case *ecdsa.PrivateKey:
+		return x509.MarshalECPrivateKey(k)
+	default:
+		return nil, fmt.Errorf("unhandled private key type: %T", k)
+	}
 }
