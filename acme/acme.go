@@ -72,6 +72,7 @@ func (a *acmeUser) GetPrivateKey() crypto.PrivateKey {
 	return a.key
 }
 
+// NewAcme returns a new AcmeTls manager
 func NewAcme(cfg *Config) (*AcmeTls, error) {
 	if cfg.CAUrl == "" {
 		cfg.CAUrl = "https://acme-v02.api.letsencrypt.org/directory"
@@ -147,6 +148,7 @@ func (a *AcmeTls) ensureRegistration(user *acmeUser) error {
 	return nil
 }
 
+// CheckRenew checks every certificate if it needs renewal based on Config.RenewalInterval and renews every certificate which needs renewal
 func (a *AcmeTls) CheckRenew() (err error) {
 	renewDomains, err := a.ExpiringDomains(a.cfg.RenewalInterval)
 	if err != nil {
@@ -160,6 +162,7 @@ func (a *AcmeTls) CheckRenew() (err error) {
 	return nil
 }
 
+// ObtainCertificate obtains a certificate for every specified domain and puts it into the CertCache
 func (a *AcmeTls) ObtainCertificate(domains ...string) error {
 	request := certificate.ObtainRequest{
 		PrivateKey: a.domainPrivateKey,
@@ -272,16 +275,19 @@ func (a *AcmeTls) getUser() (user *acmeUser, err error) {
 	return user, nil
 }
 
+// CertCache is a cache for certificates to be used in a *tls.Config
 type CertCache interface {
 	GetCertForDomain(domain string) (*tls.Certificate, error)
 	ExpiringDomains(interval time.Duration) ([][]string, error)
 }
 
+// ModifiableCertCache is a CertCache which can be modified by adding certificates. Certificate deletion is currently not in scope of this interface
 type ModifiableCertCache interface {
 	CertCache
 	AddCertificate(pemData []byte, privateKey crypto.PrivateKey) error
 }
 
+// NewTlsConfig returns a *tls.Config which serves certificates from the specified CertCache
 func NewTlsConfig(cache CertCache) *tls.Config {
 	return &tls.Config{
 		GetCertificate: func(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
