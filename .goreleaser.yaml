@@ -84,3 +84,9 @@ docker_manifests:
       - "ghcr.io/dereulenspiegel/smolmailer:latest"
       - "ghcr.io/dereulenspiegel/smolmailer:{{ .Tag }}"
       - "ghcr.io/dereulenspiegel/smolmailer:v{{ .Major }}"
+
+release:
+  replace_existing_draft: true
+  use_existing_draft: true
+  replace_existing_artifacts: true
+  name_template: "{{.ProjectName}}-v{{.Version}}"
