@@ -111,10 +111,16 @@ func NewBackend(q backendQueue, cfg *Config) (*Backend, error) {
 	return b, nil
 }
 
+type Rcpt struct {
+	To       string
+	RcptOpts *smtp.RcptOptions
+}
+
 type ReceivedMessage struct {
-	From string
-	To   []string
-	Body []byte
+	From     string
+	To       []*Rcpt
+	Body     []byte
+	MailOpts *smtp.MailOptions
 }
 
 func (r *ReceivedMessage) QueuedMessages() (msgs []*QueuedMessage) {
@@ -122,7 +128,9 @@ func (r *ReceivedMessage) QueuedMessages() (msgs []*QueuedMessage) {
 	for _, to := range r.To {
 		msgs = append(msgs, &QueuedMessage{
 			From:       r.From,
-			To:         to,
+			To:         to.To,
+			RcptOpt:    to.RcptOpts,
+			MailOpts:   r.MailOpts,
 			Body:       r.Body,
 			ReceivedAt: receivedAt,
 			ErrorCount: 0,
@@ -135,6 +143,9 @@ type QueuedMessage struct {
 	From string
 	To   string
 	Body []byte
+
+	MailOpts *smtp.MailOptions
+	RcptOpt  *smtp.RcptOptions
 
 	ReceivedAt          time.Time
 	LastDeliveryAttempt time.Time
@@ -172,11 +183,15 @@ func (s *Session) Mail(from string, opts *smtp.MailOptions) error {
 	if opts != nil {
 		s.ExpectedBodySize = opts.Size
 	}
+	s.Msg.MailOpts = opts
 	return nil
 }
 
 func (s *Session) Rcpt(to string, opts *smtp.RcptOptions) error {
-	s.Msg.To = append(s.Msg.To, to)
+	s.Msg.To = append(s.Msg.To, &Rcpt{
+		To:       to,
+		RcptOpts: opts,
+	})
 	return nil
 }
 
