@@ -25,6 +25,7 @@ jobs:
   goreleaser-build:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
