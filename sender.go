@@ -5,8 +5,10 @@ import (
 	"context"
 	"crypto"
 	"crypto/ed25519"
+	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -82,6 +84,12 @@ func NewSender(ctx context.Context, logger *slog.Logger, cfg *Config, q senderQu
 		cancel()
 		retryCancel()
 		return nil, fmt.Errorf("invalid dkim key: %w", err)
+	}
+
+	dkimRecordValue, err := dkimTxtRecordContent(dkimKey)
+	if err == nil {
+		dkimDomain := dkimDomain(cfg.Dkim.Selector, cfg.Domain)
+		logger.Info("Please add the following record to your DNS zone", "domain", dkimDomain, "recordValue", dkimRecordValue)
 	}
 
 	s := &Sender{
@@ -313,4 +321,39 @@ func parseDkimKey(pemString string) (crypto.Signer, error) {
 	default:
 		return nil, fmt.Errorf("invalid pem block type: %s", block.Type)
 	}
+}
+
+func pubKey(privKey crypto.PrivateKey) (crypto.PublicKey, error) {
+	switch k := privKey.(type) {
+	case ed25519.PrivateKey:
+		return k.Public(), nil
+	case *rsa.PrivateKey:
+		return k.PublicKey, nil
+	default:
+		return nil, fmt.Errorf("unsupported private key type: %T", k)
+	}
+}
+
+func dnsDkimKey(publicKey crypto.PublicKey) (string, error) {
+	pubkeyBytes, err := x509.MarshalPKIXPublicKey(publicKey)
+	if err != nil {
+		return "", fmt.Errorf("failed to DER encode public key: %w", err)
+	}
+	return base64.RawStdEncoding.EncodeToString(pubkeyBytes), nil
+}
+
+func dkimTxtRecordContent(privateKey crypto.PrivateKey) (string, error) {
+	pubKey, err := pubKey(privateKey)
+	if err != nil {
+		return "", err
+	}
+	base64Key, err := dnsDkimKey(pubKey)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("v=DKIM1;p=%s", base64Key), nil
+}
+
+func dkimDomain(selector, domain string) string {
+	return fmt.Sprintf("%s._domainkey.%s", selector, domain)
 }

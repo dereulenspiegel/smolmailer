@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/joncrlsn/dque"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/inbucket"
@@ -70,4 +71,19 @@ MC4CAQAwBQYDK2VwBCIEIJhGWXSKnABUEcPSYV00xfxhR6sf/3iEsJfrOxE3H/3r
 
 	err = sender.sendMail(msg)
 	require.NoError(t, err)
+}
+
+func TestCreateDnsRecords(t *testing.T) {
+	dkimKeyPem := `
+-----BEGIN PRIVATE KEY-----
+MC4CAQAwBQYDK2VwBCIEIJhGWXSKnABUEcPSYV00xfxhR6sf/3iEsJfrOxE3H/3r
+-----END PRIVATE KEY-----
+			`
+
+	privateKey, err := parseDkimKey(dkimKeyPem)
+	require.NoError(t, err)
+
+	txtVal, err := dkimTxtRecordContent(privateKey)
+	require.NoError(t, err)
+	assert.Equal(t, "v=DKIM1;p=MCowBQYDK2VwAyEAcg0U0fEFhhfu5KyEzQdS5WlErbZnF2YvUZIKnVSmxKg", txtVal)
 }
