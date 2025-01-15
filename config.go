@@ -1,6 +1,7 @@
 package smolmailer
 
 import (
+	"github.com/dereulenspiegel/smolmailer/acme"
 	"github.com/spf13/viper"
 )
 
@@ -17,6 +18,7 @@ type Config struct {
 	QueuePath       string
 	Users           []*UserConfig
 	AllowedIPRanges []string
+	Acme            *acme.Config
 }
 
 func ConfigDefaults() {
