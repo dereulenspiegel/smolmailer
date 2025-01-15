@@ -173,14 +173,12 @@ func (s *Sender) smtpDialog(c *smtp.Client, msg *QueuedMessage) error {
 		return fmt.Errorf("hello cmd failed: %w", err)
 	}
 
-	if err := c.Mail(msg.From, &smtp.MailOptions{
-		RequireTLS: false,
-	}); err != nil {
+	if err := c.Mail(msg.From, msg.MailOpts); err != nil {
 		c.Close()
 		return fmt.Errorf("mail cmd failed: %w", err)
 	}
 
-	if err := c.Rcpt(msg.To, &smtp.RcptOptions{}); err != nil {
+	if err := c.Rcpt(msg.To, msg.RcptOpt); err != nil {
 		c.Close()
 		return fmt.Errorf("rcpt cmd failed: %w", err)
 	}
