@@ -37,6 +37,8 @@ type Sender struct {
 
 	mxResolver func(string) ([]*net.MX, error)
 	mxPorts    []int
+
+	defaultDialer *net.Dialer
 }
 
 func NewSender(ctx context.Context, logger *slog.Logger, cfg *Config, q senderQueue) (*Sender, error) {
@@ -50,16 +52,28 @@ func NewSender(ctx context.Context, logger *slog.Logger, cfg *Config, q senderQu
 		retryCancel()
 		return nil, fmt.Errorf("failed to create retry queue: %w", err)
 	}
+	dialer := &net.Dialer{
+		Timeout: time.Second * 30,
+	}
+
+	if cfg.SendAddr != "" {
+		sendIp := net.ParseIP(cfg.SendAddr)
+		dialer.LocalAddr = &net.TCPAddr{
+			IP:   sendIp,
+			Port: 0,
+		}
+	}
 	s := &Sender{
-		ctx:         bCtx,
-		ctxCancel:   cancel,
-		retryCancel: retryCancel,
-		q:           q,
-		retryQueue:  retryQueue,
-		cfg:         cfg,
-		mxResolver:  lookupMX,
-		logger:      logger,
-		mxPorts:     []int{465, 587, 25},
+		ctx:           bCtx,
+		ctxCancel:     cancel,
+		retryCancel:   retryCancel,
+		q:             q,
+		retryQueue:    retryQueue,
+		cfg:           cfg,
+		mxResolver:    lookupMX,
+		logger:        logger,
+		mxPorts:       []int{465, 587},
+		defaultDialer: dialer,
 	}
 	go s.run()
 	go s.runRetry(retryCtx)
@@ -125,39 +139,41 @@ func (s *Sender) dialHost(host string) (c *smtp.Client, err error) {
 		tlsConfig := &tls.Config{ServerName: host}
 
 		switch port {
-		case 465:
-			{
-				//SMTPS
-				c, err = smtp.DialTLS(address, tlsConfig)
-				if err != nil {
-					logger.Error("failed to dial tls", "err", err)
-					errs = append(errs, err)
-					continue
-				}
-			}
 		case 587:
-			c, err = smtp.DialStartTLS(address, &tls.Config{ServerName: host})
+			tlsDialer := tls.Dialer{
+				NetDialer: s.defaultDialer,
+				Config:    tlsConfig,
+			}
+			conn, err := tlsDialer.Dial("tcp", address)
 			if err != nil {
-				logger.Error("failed to dial start tls", "err", err)
+				logger.Error("failed to tls dial", "port", port, "err", err)
 				errs = append(errs, err)
 				continue
 			}
-		case 25:
-			c, err = smtp.Dial(address)
+			c = smtp.NewClient(conn)
+		case 465:
 
+			tlsDialer := tls.Dialer{
+				NetDialer: s.defaultDialer,
+				Config:    tlsConfig,
+			}
+			conn, err := tlsDialer.Dial("tcp", address)
 			if err != nil {
-				logger.Error("failed to dial smtp", "err", err)
-				errs = append(errs, err)
+				logger.Error("failed to tls dial", "port", port, "err", err)
 				continue
 			}
+			c = smtp.NewClient(conn)
+
 		default:
-			// Assume smtp for testing
-			c, err = smtp.Dial(address)
+			conn, err := s.defaultDialer.Dial("tcp", address)
 			if err != nil {
 				logger.Error("failed to dial smtp", "err", err)
 				errs = append(errs, err)
 				continue
 			}
+			// Assume smtp for testing
+			c = smtp.NewClient(conn)
+
 		}
 		if c != nil {
 			return c, nil
@@ -211,9 +227,6 @@ func (s *Sender) sendMail(msg *QueuedMessage) error {
 	if err != nil {
 		return err
 	}
-	slices.SortStableFunc(mxRecords, func(mx1, mx2 *net.MX) int {
-		return int(mx1.Pref) - int(mx2.Pref)
-	})
 
 	for _, mx := range mxRecords {
 		host := mx.Host
@@ -240,5 +253,8 @@ func lookupMX(domain string) ([]*net.MX, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to lookup mx records for %s:%w", domain, err)
 	}
+	slices.SortStableFunc(mxRecords, func(mx1, mx2 *net.MX) int {
+		return int(mx1.Pref) - int(mx2.Pref)
+	})
 	return mxRecords, nil
 }
