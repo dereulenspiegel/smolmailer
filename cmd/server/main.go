@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/dereulenspiegel/smolmailer"
+	"github.com/dereulenspiegel/smolmailer/acme"
 	"github.com/emersion/go-smtp"
 	"github.com/spf13/viper"
 )
@@ -38,7 +39,11 @@ func main() {
 		}
 		cfg := &smolmailer.Config{}
 		if err := viper.Unmarshal(cfg); err != nil {
-			logger.Error("failed to unmarshal config", "err", err)
+			logger.Warn("failed to unmarshal config", "err", err)
+			// Config might have been set via env vars
+		}
+		if err := cfg.IsValid(); err != nil {
+			logger.Error("invalid/incomplete configuration", "err", err)
 			panic(err)
 		}
 
@@ -54,21 +59,30 @@ func main() {
 			panic(err)
 		}
 
+		acmeTls, err := acme.NewAcme(ctx, logger.With("component", "acme"), cfg.Acme)
+		if err != nil {
+			logger.Error("failed to create ACME setup", "err", err)
+			panic(err)
+		}
+		if err := acmeTls.ObtainCertificate(cfg.Domain); err != nil {
+			logger.Error("failed to obtain certificate for domain", "domain", cfg.Domain, "err", err)
+			panic(err)
+		}
+
 		s := smtp.NewServer(b)
 		s.Domain = cfg.Domain
 		s.WriteTimeout = 10 * time.Second
 		s.ReadTimeout = 10 * time.Second
 		s.MaxMessageBytes = 1024 * 1024
-		s.MaxRecipients = 1
+		s.MaxRecipients = 2
 		s.AllowInsecureAuth = false
+		s.TLSConfig = acme.NewTlsConfig(acmeTls)
 
 		sender, err := smolmailer.NewSender(ctxSender, logger.With("component", "sender"), cfg, q)
 		if err != nil {
 			logger.Error("failed to create sender", "err", err)
 			panic(err)
 		}
-
-		// TODO set TLS config s.TLSConfig
 
 		if err := s.ListenAndServeTLS(); err != nil {
 			logger.Error("failed to listen on addr", "err", err, "addr", cfg.ListenAddr)
