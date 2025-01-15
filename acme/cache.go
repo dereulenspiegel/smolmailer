@@ -103,6 +103,41 @@ func (i *inMemoryCertCache) CleanupExpired() error {
 	return nil
 }
 
+func (i *inMemoryCertCache) ExpiringDomains(interval time.Duration) (domains [][]string, err error) {
+	expiryDate := time.Now().Add(interval * -1)
+	checkeCerts := make(map[string]bool)
+	i.certs.Range(func(key any, val any) bool {
+		tlsCert := val.(*tls.Certificate)
+		dnsDomains := []string{}
+		expiring := false
+
+		for _, derBytes := range tlsCert.Certificate {
+			cert, eerr := x509.ParseCertificate(derBytes)
+			if eerr != nil {
+				err = eerr
+				return false
+			}
+			if cert.IsCA {
+				continue
+			}
+			certId := fmt.Sprintf("%s-%s", cert.Issuer.CommonName, cert.SerialNumber.String())
+			if checked := checkeCerts[certId]; checked {
+				return true
+			}
+			checkeCerts[certId] = true
+			if cert.NotAfter.After(expiryDate) {
+				expiring = true
+				dnsDomains = append(dnsDomains, cert.DNSNames...)
+			}
+		}
+		if expiring {
+			domains = append(domains, dnsDomains)
+		}
+		return true
+	})
+	return
+}
+
 type fileBackedCache struct {
 	inMemoryCertCache
 

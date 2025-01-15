@@ -78,6 +78,22 @@ func TestCleanExpiredCertificates(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestRetrieveExpiringDomain(t *testing.T) {
+	domainPrivateKey, testCert, err := generateTestCertificate(func(cert *x509.Certificate) {
+		cert.NotAfter = time.Now().Add(time.Hour * (29 * 24))
+	})
+	require.NoError(t, err)
+	c := NewInMemoryCache()
+	err = c.AddCertificate(testCert, domainPrivateKey)
+	require.NoError(t, err)
+
+	expiringDomains, err := c.ExpiringDomains(time.Hour * 24 * 30)
+	require.NoError(t, err)
+	assert.Len(t, expiringDomains, 1)
+	assert.Contains(t, expiringDomains[0], "example.com")
+	assert.Contains(t, expiringDomains[0], "sub.example.com")
+}
+
 func generateTestCertificate(fTemplate ...func(*x509.Certificate)) (crypto.PrivateKey, []byte, error) {
 	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {

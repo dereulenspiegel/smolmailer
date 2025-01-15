@@ -13,6 +13,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/go-acme/lego/v4/certcrypto"
 	"github.com/go-acme/lego/v4/certificate"
@@ -36,6 +38,7 @@ type Config struct {
 	CAUrl             string
 	DNS01ProviderName string
 	DNS01Provider     challenge.Provider
+	RenewalInterval   time.Duration
 
 	dns01DontWaitForPropagation bool         //Disable looking up the autorative DNS in testing
 	httpClient                  *http.Client // Set custom http client for testing
@@ -139,6 +142,19 @@ func (a *AcmeTls) ensureRegistration(user *acmeUser) error {
 		user.Registration = reg
 		if err := a.writeUser(user); err != nil {
 			return fmt.Errorf("failed to persist user data and registration: %w", err)
+		}
+	}
+	return nil
+}
+
+func (a *AcmeTls) CheckRenew() (err error) {
+	renewDomains, err := a.ExpiringDomains(a.cfg.RenewalInterval)
+	if err != nil {
+		return fmt.Errorf("failed to query expiring domains: %w", err)
+	}
+	for _, domains := range renewDomains {
+		if err := a.ObtainCertificate(domains...); err != nil {
+			return fmt.Errorf("failed to renew domains [%s]: %w", strings.Join(domains, ","), err)
 		}
 	}
 	return nil
@@ -258,6 +274,7 @@ func (a *AcmeTls) getUser() (user *acmeUser, err error) {
 
 type CertCache interface {
 	GetCertForDomain(domain string) (*tls.Certificate, error)
+	ExpiringDomains(interval time.Duration) ([][]string, error)
 }
 
 type ModifiableCertCache interface {
