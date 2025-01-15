@@ -34,6 +34,14 @@ func TestDeliverMail(t *testing.T) {
 	sender, err := NewSender(ctx, slog.With("component", "sender"), &Config{
 		Domain:    "example.com",
 		QueuePath: qDir,
+		Dkim: &DkimOpts{
+			Selector: "smolmailer",
+			PrivateKey: `
+-----BEGIN PRIVATE KEY-----
+MC4CAQAwBQYDK2VwBCIEIJhGWXSKnABUEcPSYV00xfxhR6sf/3iEsJfrOxE3H/3r
+-----END PRIVATE KEY-----
+			`,
+		},
 	}, sq)
 	require.NoError(t, err)
 	defer sender.Close()

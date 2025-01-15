@@ -14,6 +14,11 @@ type UserConfig struct {
 	FromAddr string
 }
 
+type DkimOpts struct {
+	Selector   string
+	PrivateKey string
+}
+
 type Config struct {
 	Domain          string
 	ListenAddr      string
@@ -22,6 +27,7 @@ type Config struct {
 	Users           []*UserConfig
 	AllowedIPRanges []string
 	Acme            *acme.Config
+	Dkim            *DkimOpts
 }
 
 func (c *Config) IsValid() error {

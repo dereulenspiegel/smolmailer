@@ -1,8 +1,13 @@
 package smolmailer
 
 import (
+	"bytes"
 	"context"
+	"crypto"
+	"crypto/ed25519"
 	"crypto/tls"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -11,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/emersion/go-msgauth/dkim"
 	"github.com/emersion/go-smtp"
 	"github.com/joncrlsn/dque"
 	"github.com/mroth/jitter"
@@ -39,6 +45,8 @@ type Sender struct {
 	mxPorts    []int
 
 	defaultDialer *net.Dialer
+
+	dkimOptions *dkim.SignOptions
 }
 
 func NewSender(ctx context.Context, logger *slog.Logger, cfg *Config, q senderQueue) (*Sender, error) {
@@ -63,6 +71,19 @@ func NewSender(ctx context.Context, logger *slog.Logger, cfg *Config, q senderQu
 			Port: 0,
 		}
 	}
+
+	if cfg.Dkim == nil {
+		cancel()
+		retryCancel()
+		return nil, errors.New("no dkim config specified")
+	}
+	dkimKey, err := parseDkimKey(cfg.Dkim.PrivateKey)
+	if err != nil {
+		cancel()
+		retryCancel()
+		return nil, fmt.Errorf("invalid dkim key: %w", err)
+	}
+
 	s := &Sender{
 		ctx:           bCtx,
 		ctxCancel:     cancel,
@@ -74,6 +95,16 @@ func NewSender(ctx context.Context, logger *slog.Logger, cfg *Config, q senderQu
 		logger:        logger,
 		mxPorts:       []int{465, 587},
 		defaultDialer: dialer,
+		dkimOptions: &dkim.SignOptions{
+			Domain:   cfg.Domain,
+			Selector: cfg.Dkim.Selector,
+			Signer:   dkimKey,
+			Hash:     crypto.SHA256,
+			HeaderKeys: []string{ // Recommended headers according to https://www.rfc-editor.org/rfc/rfc6376.html#section-5.4.1
+				"From", "Reply-to", "Subject", "Date", "To", "Cc", "Resent-Date", "Resent-From", "Resent-To", "Resent-Cc", "In-Reply-To", "References",
+				"List-Id", "List-Help", "List-Unsubscribe", "List-Subscribe", "List-Post", "List-Owner", "List-Archive",
+			},
+		},
 	}
 	go s.run()
 	go s.runRetry(retryCtx)
@@ -113,6 +144,18 @@ func (s *Sender) run() {
 			if err == dque.ErrEmpty {
 				continue
 			}
+			if msg.MailOpts == nil {
+				// TODO generate envelope id if missing
+				msg.MailOpts = &smtp.MailOptions{}
+			}
+			logger := s.logger.With("from", msg.From, "msgid", msg.MailOpts.EnvelopeID)
+
+			signedBuf := &bytes.Buffer{}
+			if err := dkim.Sign(signedBuf, bytes.NewReader(msg.Body), s.dkimOptions); err != nil {
+				logger.Error("failed to sign message", "err", err)
+				continue
+			}
+
 			go s.trySend(msg)
 		}
 	}
@@ -257,4 +300,17 @@ func lookupMX(domain string) ([]*net.MX, error) {
 		return int(mx1.Pref) - int(mx2.Pref)
 	})
 	return mxRecords, nil
+}
+
+func parseDkimKey(pemString string) (crypto.Signer, error) {
+	block, _ := pem.Decode([]byte(pemString))
+	switch block.Type {
+	case "PRIVATE KEY":
+		key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+		return key.(ed25519.PrivateKey), err
+	case "RSA PRIVATE KEY":
+		return x509.ParsePKCS1PrivateKey(block.Bytes)
+	default:
+		return nil, fmt.Errorf("invalid pem block type: %s", block.Type)
+	}
 }
