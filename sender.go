@@ -152,20 +152,21 @@ func (s *Sender) run() {
 			if err == dque.ErrEmpty {
 				continue
 			}
-			if msg.MailOpts == nil {
-				// TODO generate envelope id if missing
-				msg.MailOpts = &smtp.MailOptions{}
-			}
-			logger := s.logger.With("from", msg.From, "msgid", msg.MailOpts.EnvelopeID)
+			go func(msg *QueuedMessage) {
+				if msg.MailOpts == nil {
+					// TODO generate envelope id if missing
+					msg.MailOpts = &smtp.MailOptions{}
+				}
+				logger := s.logger.With("from", msg.From, "msgid", msg.MailOpts.EnvelopeID)
 
-			signedBuf := &bytes.Buffer{}
-			if err := dkim.Sign(signedBuf, bytes.NewReader(msg.Body), s.dkimOptions); err != nil {
-				logger.Error("failed to sign message", "err", err)
-				continue
-			}
-			msg.Body = signedBuf.Bytes()
+				signedBuf := &bytes.Buffer{}
+				if err := dkim.Sign(signedBuf, bytes.NewReader(msg.Body), s.dkimOptions); err != nil {
+					logger.Error("failed to sign message", "err", err)
+				}
+				msg.Body = signedBuf.Bytes()
 
-			go s.trySend(msg)
+				go s.trySend(msg)
+			}(msg)
 		}
 	}
 }
