@@ -23,6 +23,12 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: stable
+      - name: GHCR Login
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:

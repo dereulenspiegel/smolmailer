@@ -81,9 +81,12 @@ dockers:
 docker_manifests:
   - name_template: "dereulenspiegel/smolmailer:{{ .Version }}"
     image_templates:
-      - "ghcr.io/dereulenspiegel/smolmailer:latest"
-      - "ghcr.io/dereulenspiegel/smolmailer:{{ .Tag }}"
-      - "ghcr.io/dereulenspiegel/smolmailer:v{{ .Major }}"
+      - "ghcr.io/dereulenspiegel/smolmailer:{{ .Tag }}-amd64"
+      - "ghcr.io/dereulenspiegel/smolmailer:{{ .Tag }}-arm64"
+  - name_template: "dereulenspiegel/smolmailer:latest"
+    image_templates:
+      - "ghcr.io/dereulenspiegel/smolmailer:{{ .Tag }}-amd64"
+      - "ghcr.io/dereulenspiegel/smolmailer:{{ .Tag }}-arm64"
 
 release:
   replace_existing_draft: true
