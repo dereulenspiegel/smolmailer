@@ -21,6 +21,10 @@ jobs:
         run: go build ./...
       - name: Run tests
         run: go test ./...
+
+  goreleaser-build:
+    runs-on: ubuntu-latest
+    steps:
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
