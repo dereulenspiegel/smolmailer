@@ -163,6 +163,7 @@ func (s *Sender) run() {
 				logger.Error("failed to sign message", "err", err)
 				continue
 			}
+			msg.Body = signedBuf.Bytes()
 
 			go s.trySend(msg)
 		}
