@@ -76,6 +76,8 @@ func main() {
 		s.MaxMessageBytes = 1024 * 1024
 		s.MaxRecipients = 2
 		s.AllowInsecureAuth = false
+		s.EnableREQUIRETLS = true
+		s.ErrorLog = smolmailer.NewSlogLogger(ctx, logger.With("component", "smtp-server"), slog.LevelError)
 		s.TLSConfig = acme.NewTlsConfig(acmeTls)
 
 		sender, err := smolmailer.NewSender(ctxSender, logger.With("component", "sender"), cfg, q)
