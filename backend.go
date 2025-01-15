@@ -13,8 +13,6 @@ import (
 	"github.com/emersion/go-sasl"
 	"github.com/emersion/go-smtp"
 	"github.com/go-crypt/crypt"
-	"github.com/go-crypt/crypt/algorithm"
-	"github.com/go-crypt/crypt/algorithm/pbkdf2"
 )
 
 type backendQueue interface {
@@ -242,24 +240,4 @@ func (s *Session) Reset() {
 
 func (s *Session) Logout() error {
 	return nil
-}
-
-func pbkdf2OnlyDecoder() (decoder *crypt.Decoder, err error) {
-	decoder = crypt.NewDecoder()
-	if err := pbkdf2.RegisterDecoderSHA512(decoder); err != nil {
-		return nil, err
-	}
-	return decoder, nil
-}
-
-func pbkdf2OnlyHasher() (algorithm.Hash, error) {
-	return pbkdf2.NewSHA512()
-}
-
-func encodePassword(password string, hasher algorithm.Hash) (string, error) {
-	hash, err := hasher.Hash(password)
-	if err != nil {
-		return "", err
-	}
-	return algorithm.Digest.Encode(hash), nil
 }

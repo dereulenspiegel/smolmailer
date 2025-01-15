@@ -109,6 +109,9 @@ func NewAcme(ctx context.Context, logger *slog.Logger, cfg *Config) (*AcmeTls, e
 	acmeCfg.Certificate.KeyType = certcrypto.EC256
 	acmeCfg.CADirURL = cfg.CAUrl
 	acmeCfg.HTTPClient = cfg.httpClient
+	if acmeCfg.HTTPClient == nil {
+		acmeCfg.HTTPClient = http.DefaultClient
+	}
 
 	client, err := lego.NewClient(acmeCfg)
 	if err != nil {
@@ -197,16 +200,42 @@ func (a *AcmeTls) goCheckRenew(ctx context.Context) {
 
 // ObtainCertificate obtains a certificate for every specified domain and puts it into the CertCache
 func (a *AcmeTls) ObtainCertificate(domains ...string) error {
+	domainsToObtain := []string{}
+
+	// Do not try to obtain certificates for domains we already have valid certs for
+	for _, domain := range domains {
+		cert, err := a.GetCertForDomain(domain)
+		if err != nil || !a.isCertNotExpired(cert) {
+			domainsToObtain = append(domainsToObtain, domain)
+		}
+	}
+
 	request := certificate.ObtainRequest{
 		PrivateKey: a.domainPrivateKey,
 		Bundle:     true,
-		Domains:    domains,
+		Domains:    domainsToObtain,
 	}
 	certResource, err := a.acmeClient.Certificate.Obtain(request)
 	if err != nil {
 		return fmt.Errorf("failed to obtain certificate: %w", err)
 	}
 	return a.AddCertificate(certResource.Certificate, a.domainPrivateKey)
+}
+
+func (a *AcmeTls) isCertNotExpired(tlsCert *tls.Certificate) bool {
+	expired := false
+	// Check if any cert in the chain is expired
+	for _, derBytes := range tlsCert.Certificate {
+		cert, err := x509.ParseCertificate(derBytes)
+		if err != nil {
+			// Unparseable certificates should be renewed and therefore count as expired
+			return false
+		}
+		if !expired && time.Now().After(cert.NotAfter) {
+			expired = true
+		}
+	}
+	return expired
 }
 
 func (a *AcmeTls) loadDomainPrivateKey() (key *ecdsa.PrivateKey, err error) {
