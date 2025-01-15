@@ -2,6 +2,7 @@ package acme
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"testing"
 
@@ -32,7 +33,7 @@ func TestRegisterAcmeAccountAndObtainCertficate(t *testing.T) {
 	require.NoError(t, err)
 
 	acmeDir := t.TempDir()
-	a, err := NewAcme(&Config{
+	a, err := NewAcme(context.Background(), slog.Default(), &Config{
 		Dir:           acmeDir,
 		Email:         "test@example.com",
 		CAUrl:         caUrl,

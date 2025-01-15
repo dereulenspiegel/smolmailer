@@ -1,6 +1,7 @@
 package acme
 
 import (
+	"context"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -10,6 +11,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -39,6 +41,7 @@ type Config struct {
 	DNS01ProviderName string
 	DNS01Provider     challenge.Provider
 	RenewalInterval   time.Duration
+	AutomaticRenew    bool
 
 	dns01DontWaitForPropagation bool         //Disable looking up the autorative DNS in testing
 	httpClient                  *http.Client // Set custom http client for testing
@@ -50,6 +53,8 @@ type AcmeTls struct {
 	cfg              *Config
 	acmeClient       *lego.Client
 	domainPrivateKey *ecdsa.PrivateKey
+
+	logger *slog.Logger
 }
 
 type acmeUser struct {
@@ -73,7 +78,7 @@ func (a *acmeUser) GetPrivateKey() crypto.PrivateKey {
 }
 
 // NewAcme returns a new AcmeTls manager
-func NewAcme(cfg *Config) (*AcmeTls, error) {
+func NewAcme(ctx context.Context, logger *slog.Logger, cfg *Config) (*AcmeTls, error) {
 	if cfg.CAUrl == "" {
 		cfg.CAUrl = "https://acme-v02.api.letsencrypt.org/directory"
 	}
@@ -82,7 +87,8 @@ func NewAcme(cfg *Config) (*AcmeTls, error) {
 	}
 
 	a := &AcmeTls{
-		cfg: cfg,
+		cfg:    cfg,
+		logger: logger,
 	}
 	domainPrivateKey, err := a.loadDomainPrivateKey()
 	if err != nil {
@@ -128,6 +134,9 @@ func NewAcme(cfg *Config) (*AcmeTls, error) {
 	if err := a.ensureRegistration(user); err != nil {
 		return nil, err
 	}
+	if cfg.AutomaticRenew {
+		go a.goCheckRenew(ctx)
+	}
 	return a, nil
 }
 
@@ -160,6 +169,30 @@ func (a *AcmeTls) CheckRenew() (err error) {
 		}
 	}
 	return nil
+}
+
+func (a *AcmeTls) goCheckRenew(ctx context.Context) {
+	logger := a.logger.With("component", "acme.goCheckRenew")
+	cctx, cancel := context.WithCancel(ctx)
+	tick := time.NewTicker(time.Hour * 12)
+	defer cancel()
+	if err := a.CheckRenew(); err != nil {
+		logger.Error("failed to automatically renew certificates", "err", err)
+	}
+	for {
+		select {
+		case <-cctx.Done():
+			tick.Stop()
+			return
+		case <-tick.C:
+			if err := a.CheckRenew(); err != nil {
+				logger.Error("failed to automatically renew certificates", "err", err)
+			}
+		default:
+			// Sleep a bit to yield the goroutine
+			time.Sleep(time.Second * 10)
+		}
+	}
 }
 
 // ObtainCertificate obtains a certificate for every specified domain and puts it into the CertCache
