@@ -62,6 +62,7 @@ func main() {
 
 		s := smtp.NewServer(b)
 		s.Domain = cfg.Domain
+		s.Addr = cfg.ListenAddr
 		s.WriteTimeout = 10 * time.Second
 		s.ReadTimeout = 10 * time.Second
 		s.MaxMessageBytes = 1024 * 1024
