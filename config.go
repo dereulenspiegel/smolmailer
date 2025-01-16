@@ -22,6 +22,7 @@ type DkimOpts struct {
 type Config struct {
 	Domain          string
 	ListenAddr      string
+	ListenTls       bool
 	SendAddr        string
 	QueuePath       string
 	Users           []*UserConfig

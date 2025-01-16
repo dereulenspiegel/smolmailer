@@ -59,26 +59,28 @@ func main() {
 			panic(err)
 		}
 
-		acmeTls, err := acme.NewAcme(ctx, logger.With("component", "acme"), cfg.Acme)
-		if err != nil {
-			logger.Error("failed to create ACME setup", "err", err)
-			panic(err)
-		}
-		if err := acmeTls.ObtainCertificate(cfg.Domain); err != nil {
-			logger.Error("failed to obtain certificate for domain", "domain", cfg.Domain, "err", err)
-			panic(err)
-		}
-
 		s := smtp.NewServer(b)
 		s.Domain = cfg.Domain
 		s.WriteTimeout = 10 * time.Second
 		s.ReadTimeout = 10 * time.Second
 		s.MaxMessageBytes = 1024 * 1024
 		s.MaxRecipients = 2
-		s.AllowInsecureAuth = false
-		s.EnableREQUIRETLS = true
+		s.AllowInsecureAuth = !cfg.ListenTls
+		s.EnableREQUIRETLS = cfg.ListenTls
 		s.ErrorLog = smolmailer.NewSlogLogger(ctx, logger.With("component", "smtp-server"), slog.LevelError)
-		s.TLSConfig = acme.NewTlsConfig(acmeTls)
+
+		if cfg.ListenTls {
+			acmeTls, err := acme.NewAcme(ctx, logger.With("component", "acme"), cfg.Acme)
+			if err != nil {
+				logger.Error("failed to create ACME setup", "err", err)
+				panic(err)
+			}
+			if err := acmeTls.ObtainCertificate(cfg.Domain); err != nil {
+				logger.Error("failed to obtain certificate for domain", "domain", cfg.Domain, "err", err)
+				panic(err)
+			}
+			s.TLSConfig = acme.NewTlsConfig(acmeTls)
+		}
 
 		sender, err := smolmailer.NewSender(ctxSender, logger.With("component", "sender"), cfg, q)
 		if err != nil {
@@ -86,8 +88,14 @@ func main() {
 			panic(err)
 		}
 
-		if err := s.ListenAndServeTLS(); err != nil {
-			logger.Error("failed to listen on addr", "err", err, "addr", cfg.ListenAddr)
+		if cfg.ListenTls {
+			if err := s.ListenAndServeTLS(); err != nil {
+				logger.Error("failed to listen with TLS on addr", "err", err, "addr", cfg.ListenAddr)
+			}
+		} else {
+			if err := s.ListenAndServe(); err != nil {
+				logger.Error("failed to listen on addr", "err", err, "addr", cfg.ListenAddr)
+			}
 		}
 		sender.Close()
 	}()
