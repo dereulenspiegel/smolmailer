@@ -1,7 +1,9 @@
 package smolmailer
 
 import (
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/dereulenspiegel/smolmailer/acme"
@@ -17,6 +19,16 @@ type UserConfig struct {
 type DkimOpts struct {
 	Selector   string `mapstructure:"selector"`
 	PrivateKey string `mapstructure:"privateKey"`
+}
+
+func (d *DkimOpts) IsValid() error {
+	if d.Selector == "" {
+		return errors.New("DKIM selector must be set")
+	}
+	if d.PrivateKey == "" {
+		return errors.New("DKIM Private Key must be set")
+	}
+	return nil
 }
 
 type Config struct {
@@ -37,6 +49,9 @@ func (c *Config) IsValid() error {
 	}
 	if len(c.Users) == 0 {
 		return fmt.Errorf("no users configured")
+	}
+	if err := c.Dkim.IsValid(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -62,5 +77,6 @@ func ConfigDefaults() {
 	viper.SetDefault("acme.dns01ProviderName", "")
 
 	viper.SetEnvPrefix("SMOLMAILER")
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
 }
