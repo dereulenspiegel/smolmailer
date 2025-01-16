@@ -79,11 +79,11 @@ dockers:
       - "--platform=linux/arm64"
 
 docker_manifests:
-  - name_template: "dereulenspiegel/smolmailer:{{ .Version }}"
+  - name_template: "ghcr.io/dereulenspiegel/smolmailer:{{ .Version }}"
     image_templates:
       - "ghcr.io/dereulenspiegel/smolmailer:{{ .Tag }}-amd64"
       - "ghcr.io/dereulenspiegel/smolmailer:{{ .Tag }}-arm64"
-  - name_template: "dereulenspiegel/smolmailer:latest"
+  - name_template: "ghcr.io/dereulenspiegel/smolmailer:latest"
     image_templates:
       - "ghcr.io/dereulenspiegel/smolmailer:{{ .Tag }}-amd64"
       - "ghcr.io/dereulenspiegel/smolmailer:{{ .Tag }}-arm64"
