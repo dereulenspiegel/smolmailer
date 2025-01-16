@@ -315,7 +315,7 @@ func lookupMX(domain string) ([]*net.MX, error) {
 
 func parseDkimKey(base64String string) (crypto.Signer, error) {
 	// To be able to store this in env vars, we base64 encode it
-	pemString, err := base64.RawStdEncoding.DecodeString(base64String)
+	pemString, err := base64.StdEncoding.DecodeString(base64String)
 	if err != nil {
 		return nil, fmt.Errorf("failed to base64 decode pem string: %w", err)
 	}

@@ -38,7 +38,7 @@ func TestDeliverMail(t *testing.T) {
 		QueuePath: qDir,
 		Dkim: &DkimOpts{
 			Selector: "smolmailer",
-			PrivateKey: base64.RawStdEncoding.EncodeToString([]byte(`-----BEGIN PRIVATE KEY-----
+			PrivateKey: base64.StdEncoding.EncodeToString([]byte(`-----BEGIN PRIVATE KEY-----
 MC4CAQAwBQYDK2VwBCIEIJhGWXSKnABUEcPSYV00xfxhR6sf/3iEsJfrOxE3H/3r
 -----END PRIVATE KEY-----
 			`)),
@@ -73,8 +73,16 @@ MC4CAQAwBQYDK2VwBCIEIJhGWXSKnABUEcPSYV00xfxhR6sf/3iEsJfrOxE3H/3r
 	require.NoError(t, err)
 }
 
+func TestDecodeDkimPrivateKey(t *testing.T) {
+	privKeyStr := "LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCk1DNENBUUF3QlFZREsyVndCQ0lFSUNCWkgwYUExYk5WaVhQSEEweEl6R1dIWDRMaWlCczcyL0sxbzZpVFdNMFgKLS0tLS1FTkQgUFJJVkFURSBLRVktLS0tLQo="
+
+	privKey, err := parseDkimKey(privKeyStr)
+	require.NoError(t, err)
+	assert.NotNil(t, privKey)
+}
+
 func TestCreateDnsRecords(t *testing.T) {
-	dkimKeyPem := base64.RawStdEncoding.EncodeToString([]byte(`-----BEGIN PRIVATE KEY-----
+	dkimKeyPem := base64.StdEncoding.EncodeToString([]byte(`-----BEGIN PRIVATE KEY-----
 MC4CAQAwBQYDK2VwBCIEIJhGWXSKnABUEcPSYV00xfxhR6sf/3iEsJfrOxE3H/3r
 -----END PRIVATE KEY-----
 			`))
