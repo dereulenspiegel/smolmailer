@@ -2,6 +2,7 @@ package smolmailer
 
 import (
 	"context"
+	"encoding/base64"
 	"log"
 	"log/slog"
 	"net"
@@ -37,11 +38,10 @@ func TestDeliverMail(t *testing.T) {
 		QueuePath: qDir,
 		Dkim: &DkimOpts{
 			Selector: "smolmailer",
-			PrivateKey: `
------BEGIN PRIVATE KEY-----
+			PrivateKey: base64.RawStdEncoding.EncodeToString([]byte(`-----BEGIN PRIVATE KEY-----
 MC4CAQAwBQYDK2VwBCIEIJhGWXSKnABUEcPSYV00xfxhR6sf/3iEsJfrOxE3H/3r
 -----END PRIVATE KEY-----
-			`,
+			`)),
 		},
 	}, sq)
 	require.NoError(t, err)
@@ -74,11 +74,10 @@ MC4CAQAwBQYDK2VwBCIEIJhGWXSKnABUEcPSYV00xfxhR6sf/3iEsJfrOxE3H/3r
 }
 
 func TestCreateDnsRecords(t *testing.T) {
-	dkimKeyPem := `
------BEGIN PRIVATE KEY-----
+	dkimKeyPem := base64.RawStdEncoding.EncodeToString([]byte(`-----BEGIN PRIVATE KEY-----
 MC4CAQAwBQYDK2VwBCIEIJhGWXSKnABUEcPSYV00xfxhR6sf/3iEsJfrOxE3H/3r
 -----END PRIVATE KEY-----
-			`
+			`))
 
 	privateKey, err := parseDkimKey(dkimKeyPem)
 	require.NoError(t, err)

@@ -3,11 +3,9 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -40,7 +38,6 @@ func main() {
 			logger.Warn("failed to read config", "err", err)
 			panic(err)
 		}
-		fmt.Printf("all keys=\n%s\n", strings.Join(viper.AllKeys(), "\n"))
 		cfg := &smolmailer.Config{}
 		if err := viper.Unmarshal(cfg); err != nil {
 			logger.Warn("failed to unmarshal config", "err", err)
