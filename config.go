@@ -9,26 +9,26 @@ import (
 )
 
 type UserConfig struct {
-	Username string
-	Password string // Securely hashed password
-	FromAddr string
+	Username string `mapstructure:"username"`
+	Password string `mapstructure:"password"` // Securely hashed password
+	FromAddr string `mapstructure:"from"`
 }
 
 type DkimOpts struct {
-	Selector   string
-	PrivateKey string
+	Selector   string `mapstructure:"selector"`
+	PrivateKey string `mapstructure:"privateKey"`
 }
 
 type Config struct {
-	Domain          string
-	ListenAddr      string
-	ListenTls       bool
-	SendAddr        string
-	QueuePath       string
-	Users           []*UserConfig
-	AllowedIPRanges []string
-	Acme            *acme.Config
-	Dkim            *DkimOpts
+	Domain          string        `mapstructure:"domain"`
+	ListenAddr      string        `mapstructure:"listenAddr"`
+	ListenTls       bool          `mapstructure:"listenTls"`
+	SendAddr        string        `mapstructure:"sendAddr"`
+	QueuePath       string        `mapstructure:"queuePath"`
+	Users           []*UserConfig `mapstructure:"users"`
+	AllowedIPRanges []string      `mapstructure:"allowedIPRanges"`
+	Acme            *acme.Config  `mapstructure:"acme"`
+	Dkim            *DkimOpts     `mapstructure:"dkim"`
 }
 
 func (c *Config) IsValid() error {
@@ -47,11 +47,19 @@ func ConfigDefaults() {
 	viper.AddConfigPath("./")
 	viper.AddConfigPath("/config")
 
-	viper.SetDefault("Acme.AutomaticRenew", true)
-	viper.SetDefault("Acme.Dir", "/data/acme")
-	viper.SetDefault("Acme.RenewalInterval", time.Hour*24*30)
-	viper.SetDefault("QueuePath", "/data/qeues")
-	viper.SetDefault("ListenAddr", "[:]:2525")
+	viper.SetDefault("domain", "")
+	viper.SetDefault("listenAddr", "[:]:2525")
+	viper.SetDefault("listenTls", false)
+	viper.SetDefault("sendAddr", "")
+	viper.SetDefault("queuePath", "/data/qeues")
+	viper.SetDefault("dkim.selector", "")
+	viper.SetDefault("dkim.privateKey", "")
+	viper.SetDefault("acme.automaticRenew", true)
+	viper.SetDefault("acme.dir", "/data/acme")
+	viper.SetDefault("acme.renewalInterval", time.Hour*24*30)
+	viper.SetDefault("acme.email", "")
+	viper.SetDefault("acme.caUrl", "https://acme-v02.api.letsencrypt.org/directory")
+	viper.SetDefault("acme.dns01ProviderName", "")
 
 	viper.SetEnvPrefix("SMOLMAILER")
 	viper.AutomaticEnv()

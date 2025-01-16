@@ -35,14 +35,14 @@ const (
 )
 
 type Config struct {
-	Dir               string
-	Email             string
-	CAUrl             string
-	DNS01ProviderName string
-	DNS01Provider     challenge.Provider
-	RenewalInterval   time.Duration
-	AutomaticRenew    bool
+	Dir               string        `mapstructure:"dir"`
+	Email             string        `mapstructure:"email"`
+	CAUrl             string        `mapstructure:"caUrl"`
+	DNS01ProviderName string        `mapstructure:"dns01ProviderName"`
+	RenewalInterval   time.Duration `mapstructure:"renewalInterval"`
+	AutomaticRenew    bool          `mapstructure:"automaticRenew"`
 
+	dns01Provider               challenge.Provider
 	dns01DontWaitForPropagation bool         //Disable looking up the autorative DNS in testing
 	httpClient                  *http.Client // Set custom http client for testing
 }
@@ -124,15 +124,15 @@ func NewAcme(ctx context.Context, logger *slog.Logger, cfg *Config) (*AcmeTls, e
 		chlgOpts = append(chlgOpts, dns01.DisableAuthoritativeNssPropagationRequirement())
 	}
 
-	dns01Provider := cfg.DNS01Provider
+	dns01Provider := cfg.dns01Provider
 	if dns01Provider == nil {
 		dns01Provider, err = dns.NewDNSChallengeProviderByName(cfg.DNS01ProviderName)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create DNS-01 challenge provider %s: %s", cfg.DNS01Provider, err)
+			return nil, fmt.Errorf("failed to create DNS-01 challenge provider %s: %s", cfg.dns01Provider, err)
 		}
 	}
 	if err := client.Challenge.SetDNS01Provider(dns01Provider, chlgOpts...); err != nil {
-		return nil, fmt.Errorf("failed to set %s as DNS-01 challenge provider: %w", cfg.DNS01Provider, err)
+		return nil, fmt.Errorf("failed to set %s as DNS-01 challenge provider: %w", cfg.dns01Provider, err)
 	}
 	if err := a.ensureRegistration(user); err != nil {
 		return nil, err

@@ -2,9 +2,12 @@ package main
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -33,14 +36,15 @@ func main() {
 
 	go func() {
 		smolmailer.ConfigDefaults()
-		if err := viper.ReadInConfig(); err != nil {
+		if err := viper.ReadInConfig(); err != nil && !errors.Is(err, &viper.ConfigFileNotFoundError{}) {
 			logger.Warn("failed to read config", "err", err)
-			//panic(err)
+			panic(err)
 		}
+		fmt.Printf("all keys=\n%s\n", strings.Join(viper.AllKeys(), "\n"))
 		cfg := &smolmailer.Config{}
 		if err := viper.Unmarshal(cfg); err != nil {
 			logger.Warn("failed to unmarshal config", "err", err)
-			// Config might have been set via env vars
+			panic(err)
 		}
 		if err := cfg.IsValid(); err != nil {
 			logger.Error("invalid/incomplete configuration", "err", err)

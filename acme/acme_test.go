@@ -37,7 +37,7 @@ func TestRegisterAcmeAccountAndObtainCertficate(t *testing.T) {
 		Dir:           acmeDir,
 		Email:         "test@example.com",
 		CAUrl:         caUrl,
-		DNS01Provider: challengeProvider,
+		dns01Provider: challengeProvider,
 
 		httpClient:                  httpClient,
 		dns01DontWaitForPropagation: true,

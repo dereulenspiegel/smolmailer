@@ -90,6 +90,5 @@ docker_manifests:
 
 release:
   replace_existing_draft: true
-  use_existing_draft: true
   replace_existing_artifacts: true
   name_template: "{{.ProjectName}}-v{{.Version}}"

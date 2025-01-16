@@ -315,6 +315,9 @@ func lookupMX(domain string) ([]*net.MX, error) {
 
 func parseDkimKey(pemString string) (crypto.Signer, error) {
 	block, _ := pem.Decode([]byte(pemString))
+	if block == nil {
+		return nil, fmt.Errorf("invalid PEM string")
+	}
 	switch block.Type {
 	case "PRIVATE KEY":
 		key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
