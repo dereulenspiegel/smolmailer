@@ -20,7 +20,6 @@ import (
 
 	"github.com/emersion/go-msgauth/dkim"
 	"github.com/emersion/go-smtp"
-	"github.com/joncrlsn/dque"
 	"github.com/mroth/jitter"
 )
 
@@ -28,14 +27,10 @@ const retryQueueName = "retry-queue"
 
 const maxRetries = 10
 
-type senderQueue interface {
-	Receive() (*QueuedMessage, error)
-}
-
 type Sender struct {
 	cfg        *Config
-	q          senderQueue
-	retryQueue *dque.DQue
+	q          GenericQueue[*QueuedMessage]
+	retryQueue GenericQueue[*QueuedMessage]
 	logger     *slog.Logger
 
 	ctx       context.Context
@@ -51,12 +46,10 @@ type Sender struct {
 	dkimOptions *dkim.SignOptions
 }
 
-func NewSender(ctx context.Context, logger *slog.Logger, cfg *Config, q senderQueue) (*Sender, error) {
+func NewSender(ctx context.Context, logger *slog.Logger, cfg *Config, q GenericQueue[*QueuedMessage]) (*Sender, error) {
 	bCtx, cancel := context.WithCancel(ctx)
 	retryCtx, retryCancel := context.WithCancel(ctx)
-	retryQueue, err := dque.NewOrOpen(retryQueueName, cfg.QueuePath, 50, func() interface{} {
-		return &QueuedMessage{}
-	})
+	retryQueue, err := NewGenericPersistentQueue[*QueuedMessage](retryQueueName, cfg.QueuePath, 50)
 	if err != nil {
 		cancel()
 		retryCancel()
@@ -134,8 +127,7 @@ func (s *Sender) runRetry(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			for item, err := s.retryQueue.Dequeue(); err == nil; {
-				msg := item.(*QueuedMessage)
+			for msg, err := s.retryQueue.Receive(); err == nil; {
 				s.trySend(msg)
 			}
 		}
@@ -149,7 +141,7 @@ func (s *Sender) run() {
 			return
 		default:
 			msg, err := s.q.Receive()
-			if err == dque.ErrEmpty {
+			if err == ErrQueueEmpty {
 				continue
 			}
 			go func(msg *QueuedMessage) {
@@ -172,6 +164,7 @@ func (s *Sender) run() {
 }
 
 func (s *Sender) trySend(msg *QueuedMessage) {
+	logger := s.logger
 	err := s.sendMail(msg)
 	if err != nil {
 		msg.LastErr = err
@@ -179,7 +172,9 @@ func (s *Sender) trySend(msg *QueuedMessage) {
 		if msg.ErrorCount >= maxRetries {
 			// TODO log error and discard message
 		}
-		s.retryQueue.Enqueue(msg)
+		if err := s.retryQueue.Send(msg); err != nil {
+			logger.Error("failed to enqueue message")
+		}
 	}
 }
 

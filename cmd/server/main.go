@@ -48,7 +48,7 @@ func main() {
 			panic(err)
 		}
 
-		q, err := smolmailer.NewDQeue(cfg)
+		q, err := smolmailer.NewGenericPersistentQueue[*smolmailer.QueuedMessage]("backend-queue", cfg.QueuePath, 50)
 		if err != nil {
 			logger.Error("failed to create queue", "err", err)
 			panic(err)

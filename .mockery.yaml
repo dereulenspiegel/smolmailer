@@ -10,6 +10,5 @@ packages:
       dir: "."
     interfaces:
       # select the interfaces you want mocked
-      backendQueue:
+      GenericQueue:
       userService:
-      senderQueue:

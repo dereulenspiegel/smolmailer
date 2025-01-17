@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/joncrlsn/dque"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
@@ -27,10 +26,10 @@ func TestDeliverMail(t *testing.T) {
 		ReceivedAt: time.Now(),
 	}
 
-	sq := newSenderQueueMock(t)
+	sq := NewGenericQueueMock[*QueuedMessage](t)
 	sq.On("Receive").Return(func() (*QueuedMessage, error) {
 		time.Sleep(100)
-		return nil, dque.ErrEmpty
+		return nil, ErrQueueEmpty
 	})
 
 	sender, err := NewSender(ctx, slog.With("component", "sender"), &Config{

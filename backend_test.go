@@ -52,14 +52,14 @@ func TestValidateIPRange(t *testing.T) {
 }
 
 func TestSessionQueuesSuccessfully(t *testing.T) {
-	q := newBackendQueueMock(t)
+	q := NewGenericQueueMock[*QueuedMessage](t)
 	usrSrv := newUserServiceMock(t)
 
 	usrSrv.On("IsValidSender", "validUser", "valid@example.com").Return(true)
 
 	sess := NewSession(q, usrSrv)
 
-	q.On("QueueMessage", mock.MatchedBy(func(msg *QueuedMessage) bool {
+	q.On("Send", mock.MatchedBy(func(msg *QueuedMessage) bool {
 		return msg.From == "valid@example.com" && msg.To == "valid@example.com" && string(msg.Body) == "test"
 	})).Return(nil)
 

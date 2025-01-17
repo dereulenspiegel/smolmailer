@@ -25,7 +25,7 @@ type userService interface {
 }
 
 type Backend struct {
-	q   backendQueue
+	q   GenericQueue[*QueuedMessage]
 	cfg *Config
 
 	allowedIPNets []*net.IPNet
@@ -87,7 +87,7 @@ func (b *Backend) findUserByUsername(username string) *UserConfig {
 	return nil
 }
 
-func NewBackend(q backendQueue, cfg *Config) (*Backend, error) {
+func NewBackend(q GenericQueue[*QueuedMessage], cfg *Config) (*Backend, error) {
 	b := &Backend{
 		q:   q,
 		cfg: cfg,
@@ -157,11 +157,11 @@ type Session struct {
 
 	authenticatedSubject string
 
-	q       backendQueue
+	q       GenericQueue[*QueuedMessage]
 	userSrv userService
 }
 
-func NewSession(q backendQueue, userSrv userService) *Session {
+func NewSession(q GenericQueue[*QueuedMessage], userSrv userService) *Session {
 	return &Session{
 		Msg:     &ReceivedMessage{},
 		userSrv: userSrv,
@@ -209,7 +209,7 @@ func (s *Session) Data(r io.Reader) (err error) {
 	}
 
 	for _, msg := range s.Msg.QueuedMessages() {
-		if err := s.q.QueueMessage(msg); err != nil {
+		if err := s.q.Send(msg); err != nil {
 			return fmt.Errorf("failed to queue message: %w", err)
 		}
 	}

@@ -25,8 +25,8 @@ func (s *serverDebugLogger) Println(v ...interface{}) {
 }
 
 func TestSendMail(t *testing.T) {
-	q := newBackendQueueMock(t)
-	q.On("QueueMessage", mock.IsType(&QueuedMessage{})).Return(nil)
+	q := NewGenericQueueMock[*QueuedMessage](t)
+	q.On("Send", mock.IsType(&QueuedMessage{})).Return(nil)
 
 	userPasswd, err := encodePassword("example", must(pbkdf2OnlyHasher()))
 	require.NoError(t, err)

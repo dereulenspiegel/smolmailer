@@ -1,44 +1,51 @@
 package smolmailer
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/joncrlsn/dque"
 )
 
-const mailQeueuName = "mail-queue"
-const segmentSize = 50
-
-type DQeue struct {
-	q *dque.DQue
+type GenericQueue[T any] interface {
+	Send(item T) error
+	Receive() (item T, err error)
+	Close() error
 }
 
-func SessionBuilder() interface{} {
-	return &QueuedMessage{}
+type GenericPersistentQueue[T any] struct {
+	dq *dque.DQue
 }
 
-func NewDQeue(cfg *Config) (*DQeue, error) {
-	q, err := dque.NewOrOpen(mailQeueuName, cfg.QueuePath, segmentSize, SessionBuilder)
+var ErrQueueEmpty = errors.New("queue empty")
+
+func NewGenericPersistentQueue[T any](name, dir string, segmentSize int) (*GenericPersistentQueue[T], error) {
+	dq, err := dque.NewOrOpen(name, dir, segmentSize, func() interface{} {
+		return new(T)
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create or open persistent queue:%w", err)
+		return nil, fmt.Errorf("failed to create persistent internal queue: %w", err)
 	}
-	return &DQeue{
-		q: q,
+	return &GenericPersistentQueue[T]{
+		dq: dq,
 	}, nil
 }
 
-func (d *DQeue) QueueMessage(msg *QueuedMessage) error {
-	return d.q.Enqueue(msg)
+func (g *GenericPersistentQueue[T]) Send(item T) error {
+	return g.dq.Enqueue(item)
 }
 
-func (d *DQeue) Receive() (*QueuedMessage, error) {
-	item, err := d.q.Dequeue()
+func (g *GenericPersistentQueue[T]) Receive() (item T, err error) {
+	i, err := g.dq.Dequeue()
 	if err != nil {
-		return nil, err
+		if err == dque.ErrEmpty {
+			return item, ErrQueueEmpty
+		}
+		return item, err
 	}
-	return item.(*QueuedMessage), nil
+	return i.(T), err
 }
 
-func (d *DQeue) Close() error {
-	return d.q.Close()
+func (g *GenericPersistentQueue[T]) Close() error {
+	return g.dq.Close()
 }
