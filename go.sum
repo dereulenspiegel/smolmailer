@@ -934,10 +934,10 @@ github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.0.1065 h1:krc
 github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.0.1065/go.mod h1:r5r4xbfxSaeR04b166HGsBa/R4U3SueirEUpXGuw+Q0=
 github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/dnspod v1.0.1065 h1:aEFtLD1ceyeljQXB1S2BjN0zjTkf0X3XmpuxFIiC29w=
 github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/dnspod v1.0.1065/go.mod h1:HWvwy09hFSMXrj9SMvVRWV4U7rZO3l+WuogyNuxiT3M=
-github.com/testcontainers/testcontainers-go v0.34.0 h1:5fbgF0vIN5u+nD3IWabQwRybuB4GY8G2HHgCkbMzMHo=
-github.com/testcontainers/testcontainers-go v0.34.0/go.mod h1:6P/kMkQe8yqPHfPWNulFGdFHTD8HB2vLq/231xY2iPQ=
-github.com/testcontainers/testcontainers-go/modules/inbucket v0.34.0 h1:4LP3NoCcDwe6rgXhNG5P/qWpxgnt4/McEseYUltk60o=
-github.com/testcontainers/testcontainers-go/modules/inbucket v0.34.0/go.mod h1:nrNCs5FjDe0QypvCqJ3+esWfFSiUtefv6vzxh+eiKT8=
+github.com/testcontainers/testcontainers-go v0.35.0 h1:uADsZpTKFAtp8SLK+hMwSaa+X+JiERHtd4sQAFmXeMo=
+github.com/testcontainers/testcontainers-go v0.35.0/go.mod h1:oEVBj5zrfJTrgjwONs1SsRbnBtH9OKl+IGl3UMcr2B4=
+github.com/testcontainers/testcontainers-go/modules/inbucket v0.35.0 h1:TFBny7ymtv+MxFZvqXvR5dm1Im4hgb8YYVvUh/AFWcY=
+github.com/testcontainers/testcontainers-go/modules/inbucket v0.35.0/go.mod h1:EcxTEACX41/CXKgNNAt2wR2CByW5zGNkKpWNYw4/fE4=
 github.com/tjfoc/gmsm v1.4.1 h1:aMe1GlZb+0bLjn+cKTPEvvn9oUEBlJitaZiiBwsbgho=
 github.com/tjfoc/gmsm v1.4.1/go.mod h1:j4INPkHWMrhJb38G+J6W4Tw0AbuN8Thu3PbdVYhVcTE=
 github.com/tklauser/go-sysconf v0.3.12 h1:0QaGUFOdQaIVdPgfITYzaTegZvdCjmYO52cSFAEVmqU=
