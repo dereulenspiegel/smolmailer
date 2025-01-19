@@ -27,7 +27,7 @@ jobs:
         uses: astral-sh/setup-uv@v5
 
       - name: Run zizmor 🌈
-        run: uvx zizmor --config .github/zizmor.yaml --format sarif . > results.sarif
+        run: uvx zizmor --format sarif . > results.sarif
 
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
