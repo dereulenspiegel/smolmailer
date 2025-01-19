@@ -222,7 +222,7 @@ func (s *Session) AuthMechanisms() []string {
 }
 
 func (s *Session) Auth(mech string) (sasl.Server, error) {
-	return sasl.NewPlainServer(func(identity, username, password string) error {
+	plainServer := sasl.NewPlainServer(func(identity, username, password string) error {
 		if identity != "" && identity != username {
 			return errors.New("invalid identity")
 		}
@@ -231,7 +231,20 @@ func (s *Session) Auth(mech string) (sasl.Server, error) {
 		}
 		s.authenticatedSubject = username
 		return nil
-	}), nil
+	})
+
+	loginServer := NewLoginServer(func(username, password string) error {
+		return s.userSrv.Authenticate(username, password)
+	})
+
+	switch mech {
+	case sasl.Plain:
+		return plainServer, nil
+	case sasl.Login:
+		return loginServer, nil
+	default:
+		return nil, fmt.Errorf("unsupported auth method %s", mech)
+	}
 }
 
 func (s *Session) Reset() {
