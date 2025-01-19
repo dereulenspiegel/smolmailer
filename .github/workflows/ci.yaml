@@ -39,4 +39,16 @@ jobs:
         with:
           distribution: goreleaser
           version: "latest"
-          args: build --snapshot --clean
+          args: release --snapshot --clean
+      - run: cp dist/server_linux_amd64_v2/smolmailer ./
+      - name: GHCR Login
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          push: true
+          tags: ghcr.io/dereulenspiegel/smolmailer/latest-dev-amd64
