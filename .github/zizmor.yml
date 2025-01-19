@@ -1,8 +1,0 @@
-rules:
-  cache-poisoning:
-    ignore:
-      - ci.yaml:53
-  excessive-permissions:
-    ignore:
-      - ci.yaml:1
-      - ci.yaml:11
