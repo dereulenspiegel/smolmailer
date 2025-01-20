@@ -200,7 +200,20 @@ func (s *Sender) dialHost(host string) (c *smtp.Client, err error) {
 		}
 
 		switch port {
-		case 587, 465, 25:
+		case 25:
+			conn, err := s.defaultDialer.Dial("tcp", address)
+			if err != nil {
+				errs = append(errs, err)
+				logger.Error("failed to dial for start TLS", "err", err)
+				continue
+			}
+			c, err = smtp.NewClientStartTLS(conn, tlsConfig)
+			if err != nil {
+				errs = append(errs, err)
+				logger.Error("failed to run start TLS on connection", "err", err)
+				continue
+			}
+		case 587, 465:
 			conn, err := dialTls(address)
 			if err != nil {
 				continue
@@ -215,7 +228,6 @@ func (s *Sender) dialHost(host string) (c *smtp.Client, err error) {
 			}
 			// Assume smtp for testing
 			c = smtp.NewClient(conn)
-
 		}
 		if c != nil {
 			c.SubmissionTimeout = time.Second * 10
