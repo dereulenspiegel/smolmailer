@@ -94,7 +94,7 @@ func NewSender(ctx context.Context, logger *slog.Logger, cfg *Config, q GenericQ
 		cfg:           cfg,
 		mxResolver:    lookupMX,
 		logger:        logger,
-		mxPorts:       []int{465, 587},
+		mxPorts:       []int{25, 465, 587},
 		defaultDialer: dialer,
 		dkimOptions: &dkim.SignOptions{
 			Domain:   cfg.Domain,
@@ -186,32 +186,26 @@ func (s *Sender) dialHost(host string) (c *smtp.Client, err error) {
 		address := fmt.Sprintf("%s:%d", host, port)
 		tlsConfig := &tls.Config{ServerName: host}
 
-		switch port {
-		case 587:
+		dialTls := func(address string) (conn net.Conn, err error) {
 			tlsDialer := tls.Dialer{
 				NetDialer: s.defaultDialer,
 				Config:    tlsConfig,
 			}
-			conn, err := tlsDialer.Dial("tcp", address)
+			conn, err = tlsDialer.Dial("tcp", address)
 			if err != nil {
 				logger.Error("failed to tls dial", "port", port, "err", err)
 				errs = append(errs, err)
-				continue
 			}
-			c = smtp.NewClient(conn)
-		case 465:
+			return
+		}
 
-			tlsDialer := tls.Dialer{
-				NetDialer: s.defaultDialer,
-				Config:    tlsConfig,
-			}
-			conn, err := tlsDialer.Dial("tcp", address)
+		switch port {
+		case 587, 465, 25:
+			conn, err := dialTls(address)
 			if err != nil {
-				logger.Error("failed to tls dial", "port", port, "err", err)
 				continue
 			}
 			c = smtp.NewClient(conn)
-
 		default:
 			conn, err := s.defaultDialer.Dial("tcp", address)
 			if err != nil {
