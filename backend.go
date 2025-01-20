@@ -269,6 +269,7 @@ func (s *Session) Auth(mech string) (sasl.Server, error) {
 			return err
 		}
 		logger.Info("user authenticated successfully")
+		s.authenticatedSubject = username
 		return nil
 	})
 
