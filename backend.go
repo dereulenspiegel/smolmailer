@@ -3,9 +3,11 @@
 package smolmailer
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/netip"
 	"time"
@@ -25,8 +27,10 @@ type userService interface {
 }
 
 type Backend struct {
-	q   GenericQueue[*QueuedMessage]
-	cfg *Config
+	q      GenericQueue[*QueuedMessage]
+	cfg    *Config
+	logger *slog.Logger
+	ctx    context.Context
 
 	allowedIPNets []*net.IPNet
 
@@ -38,7 +42,7 @@ func (b *Backend) NewSession(conn *smtp.Conn) (smtp.Session, error) {
 	if !b.isValidRemoteAddr(remoteAddr) {
 		return nil, fmt.Errorf("the client %s is not allowed to send messages", remoteAddr.String())
 	}
-	return NewSession(b.q, b), nil
+	return NewSession(b.ctx, b.logger.With("session", true, "remoteAddr", conn.Conn().RemoteAddr().String()), b.q, b), nil
 }
 
 func (b *Backend) Authenticate(username, password string) error {
@@ -87,10 +91,12 @@ func (b *Backend) findUserByUsername(username string) *UserConfig {
 	return nil
 }
 
-func NewBackend(q GenericQueue[*QueuedMessage], cfg *Config) (*Backend, error) {
+func NewBackend(ctx context.Context, logger *slog.Logger, q GenericQueue[*QueuedMessage], cfg *Config) (*Backend, error) {
 	b := &Backend{
-		q:   q,
-		cfg: cfg,
+		q:      q,
+		cfg:    cfg,
+		logger: logger,
+		ctx:    ctx,
 	}
 	for _, netString := range cfg.AllowedIPRanges {
 		_, ipNet, err := net.ParseCIDR(netString)
@@ -159,23 +165,33 @@ type Session struct {
 
 	q       GenericQueue[*QueuedMessage]
 	userSrv userService
+	logger  *slog.Logger
+	ctx     context.Context
+	logVals []slog.Attr
 }
 
-func NewSession(q GenericQueue[*QueuedMessage], userSrv userService) *Session {
+func NewSession(ctx context.Context, logger *slog.Logger, q GenericQueue[*QueuedMessage], userSrv userService) *Session {
+	logger.Info("Starting new session")
 	return &Session{
 		Msg:     &ReceivedMessage{},
 		userSrv: userSrv,
 		q:       q,
+		logger:  logger,
+		ctx:     ctx,
 	}
 }
 
 func (s *Session) Mail(from string, opts *smtp.MailOptions) error {
+	logger := s.logWithGroup("Mail", slog.String("from", from), slog.String("envelopeId", opts.EnvelopeID), slog.Bool("requireTLS", opts.RequireTLS))
+	logger.Info("Mail from")
 	s.Msg.From = from
 	if s.authenticatedSubject == "" {
+		logger.Warn("declining unauthenticated session")
 		return fmt.Errorf("not authenticated")
 	}
 
 	if !s.userSrv.IsValidSender(s.authenticatedSubject, s.Msg.From) {
+		logger.Warn("not a valid sender")
 		return fmt.Errorf("user %s is now allowed to send emails as %s", s.authenticatedSubject, s.Msg.From)
 	}
 	if opts != nil {
@@ -186,6 +202,8 @@ func (s *Session) Mail(from string, opts *smtp.MailOptions) error {
 }
 
 func (s *Session) Rcpt(to string, opts *smtp.RcptOptions) error {
+	logger := s.logWithGroup("Rcpt", slog.String("to", to))
+	logger.Info("Rcpt to")
 	s.Msg.To = append(s.Msg.To, &Rcpt{
 		To:       to,
 		RcptOpts: opts,
@@ -194,7 +212,8 @@ func (s *Session) Rcpt(to string, opts *smtp.RcptOptions) error {
 }
 
 func (s *Session) Data(r io.Reader) (err error) {
-
+	logger := s.logWithGroup("Data", slog.Uint64("expectedBodySize", uint64(s.ExpectedBodySize)))
+	logger.Info("Receiving data")
 	lr := r
 	if s.ExpectedBodySize > 0 {
 		lr = io.LimitReader(r, s.ExpectedBodySize)
@@ -202,14 +221,17 @@ func (s *Session) Data(r io.Reader) (err error) {
 	s.Msg.Body, err = io.ReadAll(lr)
 	n := len(s.Msg.Body)
 	if s.ExpectedBodySize > 0 && int64(n) != s.ExpectedBodySize {
+		logger.Error("Invalid body size", slog.Int("bodySize", n))
 		return fmt.Errorf("read only %d body bytes, but expected %d bytes", n, s.ExpectedBodySize)
 	}
 	if err != nil {
+		logger.Error("failed to read message body", "err", err)
 		return fmt.Errorf("failed to read message body: %w", err)
 	}
 
 	for _, msg := range s.Msg.QueuedMessages() {
 		if err := s.q.Send(msg); err != nil {
+			logger.Error("failed to queue message", "err", err)
 			return fmt.Errorf("failed to queue message: %w", err)
 		}
 	}
@@ -218,23 +240,36 @@ func (s *Session) Data(r io.Reader) (err error) {
 }
 
 func (s *Session) AuthMechanisms() []string {
-	return []string{sasl.Plain}
+	return []string{sasl.Plain, sasl.Login}
 }
 
 func (s *Session) Auth(mech string) (sasl.Server, error) {
+	logger := s.logWithGroup("Auth", slog.String("authMech", mech))
 	plainServer := sasl.NewPlainServer(func(identity, username, password string) error {
+		logger := logger.With(slog.String("username", username), slog.String("identity", identity))
+		logger.Debug("authenticating user")
 		if identity != "" && identity != username {
+			logger.Error("invalid identity")
 			return errors.New("invalid identity")
 		}
 		if err := s.userSrv.Authenticate(username, password); err != nil {
+			logger.Error("failed to authenticate user", "err", err)
 			return fmt.Errorf("failed to authenticate user %s: %w", username, err)
 		}
+		logger.Info("user authenticated successfully")
 		s.authenticatedSubject = username
 		return nil
 	})
 
 	loginServer := NewLoginServer(func(username, password string) error {
-		return s.userSrv.Authenticate(username, password)
+		logger := logger.With(slog.String("username", username))
+		logger.Debug("authenticating user")
+		if err := s.userSrv.Authenticate(username, password); err != nil {
+			logger.Error("failed to authenticate user", "err", err)
+			return err
+		}
+		logger.Info("user authenticated successfully")
+		return nil
 	})
 
 	switch mech {
@@ -243,14 +278,28 @@ func (s *Session) Auth(mech string) (sasl.Server, error) {
 	case sasl.Login:
 		return loginServer, nil
 	default:
+		logger.Error("unsupported auth method")
 		return nil, fmt.Errorf("unsupported auth method %s", mech)
 	}
 }
 
 func (s *Session) Reset() {
+	logger := s.logWithGroup("Reset")
+	logger.Debug("session reset")
 	s.Msg = &ReceivedMessage{}
 }
 
 func (s *Session) Logout() error {
+	logger := s.logWithGroup("Logout")
+	logger.Debug("logging user out")
 	return nil
+}
+
+func (s *Session) logWithGroup(stage string, additionalGroupVals ...slog.Attr) *slog.Logger {
+	s.logVals = append(s.logVals, additionalGroupVals...)
+	return s.logger.With("session", s, slog.String("stage", stage))
+}
+
+func (s *Session) LogValue() slog.Value {
+	return slog.GroupValue(s.logVals...)
 }

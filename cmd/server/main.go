@@ -53,8 +53,9 @@ func main() {
 			logger.Error("failed to create queue", "err", err)
 			panic(err)
 		}
-
-		b, err := smolmailer.NewBackend(q, cfg)
+		backendCtx, backendCancel := context.WithCancel(ctx)
+		defer backendCancel()
+		b, err := smolmailer.NewBackend(backendCtx, logger.With("component", "backend"), q, cfg)
 		if err != nil {
 			logger.Error("failed to create backend", "err", err)
 			panic(err)

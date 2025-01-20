@@ -1,7 +1,9 @@
 package smolmailer
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 	"net"
 	"os"
 	"testing"
@@ -25,6 +27,7 @@ func (s *serverDebugLogger) Println(v ...interface{}) {
 }
 
 func TestSendMail(t *testing.T) {
+	ctx := context.Background()
 	q := NewGenericQueueMock[*QueuedMessage](t)
 	q.On("Send", mock.IsType(&QueuedMessage{})).Return(nil)
 
@@ -41,7 +44,7 @@ func TestSendMail(t *testing.T) {
 			},
 		},
 	}
-	b, err := NewBackend(q, cfg)
+	b, err := NewBackend(ctx, slog.Default(), q, cfg)
 	require.NoError(t, err)
 
 	tcpListener, err := net.Listen("tcp", "[::1]:0")
