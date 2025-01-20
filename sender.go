@@ -21,6 +21,7 @@ import (
 	"github.com/emersion/go-msgauth/dkim"
 	"github.com/emersion/go-smtp"
 	"github.com/mroth/jitter"
+	"github.com/scaleway/scaleway-sdk-go/logger"
 )
 
 const retryQueueName = "retry-queue"
@@ -143,7 +144,11 @@ func (s *Sender) run() {
 			msg, err := s.q.Receive()
 			if err == ErrQueueEmpty {
 				continue
+			} else if err != nil {
+				s.logger.Error("failed to read from queue", "err", err)
+				continue
 			}
+			logger.Infof("processing message", "from", msg.From, "to", msg.To, "envelopeId", msg.MailOpts.EnvelopeID)
 			go func(msg *QueuedMessage) {
 				if msg.MailOpts == nil {
 					// TODO generate envelope id if missing
@@ -156,7 +161,7 @@ func (s *Sender) run() {
 					logger.Error("failed to sign message", "err", err)
 				}
 				msg.Body = signedBuf.Bytes()
-
+				logger.Info("trying to send message")
 				go s.trySend(msg)
 			}(msg)
 		}
@@ -164,13 +169,15 @@ func (s *Sender) run() {
 }
 
 func (s *Sender) trySend(msg *QueuedMessage) {
-	logger := s.logger
+	logger := s.logger.With("from", msg.From, "to", msg.To, "envelopeId", msg.MailOpts.EnvelopeID)
 	err := s.sendMail(msg)
 	if err != nil {
+
 		msg.LastErr = err
 		msg.ErrorCount++
+		logger.Error("failed to deliver mail", "err", err, "errorCount", msg.ErrorCount)
 		if msg.ErrorCount >= maxRetries {
-			// TODO log error and discard message
+			logger.Error("giving up delivering mail", "errorCount", msg.ErrorCount, "err", err)
 		}
 		if err := s.retryQueue.Send(msg); err != nil {
 			logger.Error("failed to enqueue message")
@@ -180,6 +187,7 @@ func (s *Sender) trySend(msg *QueuedMessage) {
 
 func (s *Sender) dialHost(host string) (c *smtp.Client, err error) {
 	logger := s.logger.With("host", host)
+	logger.Info("dialing mx host")
 	errs := []error{}
 	for _, port := range s.mxPorts {
 		logger := logger.With("port", port)
@@ -230,6 +238,7 @@ func (s *Sender) dialHost(host string) (c *smtp.Client, err error) {
 			c = smtp.NewClient(conn)
 		}
 		if c != nil {
+			logger.Info("succeeded dialing mx host")
 			c.SubmissionTimeout = time.Second * 10
 			return c, nil
 		}
@@ -274,7 +283,7 @@ func (s *Sender) smtpDialog(c *smtp.Client, msg *QueuedMessage) error {
 }
 
 func (s *Sender) sendMail(msg *QueuedMessage) error {
-	logger := s.logger.With("func", "sendMail", "to", msg.To, "from", msg.From)
+	logger := s.logger.With("to", msg.To, "from", msg.From, "envelopeId", msg.MailOpts.EnvelopeID)
 	msg.LastDeliveryAttempt = time.Now()
 	domain := strings.Split(msg.To, "@")[1]
 
@@ -296,7 +305,7 @@ func (s *Sender) sendMail(msg *QueuedMessage) error {
 			logger.Error("smtp dialog failed", "err", err)
 			continue
 		}
-
+		logger.Info("Successfully delivered message")
 		return nil
 
 	}
