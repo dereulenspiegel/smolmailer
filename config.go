@@ -3,6 +3,7 @@ package smolmailer
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -35,6 +36,7 @@ type Config struct {
 	Domain          string        `mapstructure:"domain"`
 	ListenAddr      string        `mapstructure:"listenAddr"`
 	ListenTls       bool          `mapstructure:"listenTls"`
+	LogLevel        string        `mapstructure:"logLevel"`
 	SendAddr        string        `mapstructure:"sendAddr"`
 	QueuePath       string        `mapstructure:"queuePath"`
 	Users           []*UserConfig `mapstructure:"users"`
@@ -65,6 +67,7 @@ func ConfigDefaults() {
 	viper.SetDefault("domain", "")
 	viper.SetDefault("listenAddr", "[:]:2525")
 	viper.SetDefault("listenTls", false)
+	viper.SetDefault("logLevel", must(slog.LevelInfo.MarshalText()))
 	viper.SetDefault("sendAddr", "")
 	viper.SetDefault("queuePath", "/data/qeues")
 	viper.SetDefault("dkim.selector", "")

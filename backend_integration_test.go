@@ -74,10 +74,3 @@ func TestSendMail(t *testing.T) {
 	require.NoError(t, writer.Close())
 	require.NoError(t, client.Quit())
 }
-
-func must[T any](v T, err error) T {
-	if err != nil {
-		panic(err)
-	}
-	return v
-}

@@ -47,6 +47,10 @@ func main() {
 			logger.Error("invalid/incomplete configuration", "err", err)
 			panic(err)
 		}
+		if err := logLevel.UnmarshalText([]byte(cfg.LogLevel)); err != nil {
+			logger.Error("failed to unmarshal log level", "err", err)
+			panic(err)
+		}
 
 		q, err := smolmailer.NewGenericPersistentQueue[*smolmailer.QueuedMessage]("backend-queue", cfg.QueuePath, 50)
 		if err != nil {
