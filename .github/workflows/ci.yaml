@@ -9,8 +9,10 @@ on:
       - .pre-commit-config.yaml
 
 jobs:
-  test: # zizmor: ignore[excessive-permissions]
+  test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     strategy:
       matrix:
         go-versions: ["1.23", "stable"]
