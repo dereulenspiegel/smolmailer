@@ -18,26 +18,29 @@ type mockCloser struct {
 func (m *mockCloser) Close() error {
 	return m.Called().Error(0)
 }
-func TestResolveParallelSuccess(t *testing.T) {
-	fabFail := func(delay time.Duration) func() (io.Closer, error) {
-		return func() (io.Closer, error) {
-			time.Sleep(delay)
-			return nil, errors.New("failed after sleep")
-		}
-	}
 
-	failedResult := new(mockCloser)
-	failedResult.On("Close").Once().Return(nil)
+func fabFail(delay time.Duration) func() (io.Closer, error) {
+	return func() (io.Closer, error) {
+		time.Sleep(delay)
+		return nil, errors.New("failed after sleep")
+	}
+}
+
+func TestResolveParallelSuccess(t *testing.T) {
+	unusedResult := new(mockCloser)
+	unusedResult.On("Close").Once().Return(nil)
 
 	fSlow := func() (io.Closer, error) {
 		time.Sleep(time.Millisecond * 310)
 
-		return failedResult, nil
+		return unusedResult, nil
 	}
+
+	usedResult := new(mockCloser)
 
 	fSuccess := func() (io.Closer, error) {
 		time.Sleep(time.Millisecond * 300)
-		return io.NopCloser(nil), nil
+		return usedResult, nil
 	}
 
 	ff1 := fabFail(time.Millisecond * 100)
@@ -54,17 +57,11 @@ func TestResolveParallelSuccess(t *testing.T) {
 	assert.Less(t, runDuration, time.Millisecond*400)
 
 	time.Sleep(time.Millisecond * 400)
-	failedResult.AssertExpectations(t)
+	unusedResult.AssertExpectations(t)
+	usedResult.AssertNotCalled(t, "Close")
 }
 
 func TestResolveParallelFail(t *testing.T) {
-	fabFail := func(delay time.Duration) func() (io.Closer, error) {
-		return func() (io.Closer, error) {
-			time.Sleep(delay)
-			return nil, errors.New("failed after sleep")
-		}
-	}
-
 	ff1 := fabFail(time.Millisecond * 100)
 	ff2 := fabFail(time.Millisecond * 200)
 	ff3 := fabFail(time.Millisecond * 400)
