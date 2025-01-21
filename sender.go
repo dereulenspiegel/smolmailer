@@ -189,53 +189,61 @@ func (s *Sender) dialHost(host string) (c *smtp.Client, err error) {
 	logger := s.logger.With("host", host)
 	logger.Info("dialing mx host")
 	errs := []error{}
+
+	dialTls := func(logger *slog.Logger, tlsConfig *tls.Config, address string) func() (*smtp.Client, error) {
+		return func() (*smtp.Client, error) {
+			tlsDialer := tls.Dialer{
+				NetDialer: s.defaultDialer,
+				Config:    tlsConfig,
+			}
+			conn, err := tlsDialer.Dial("tcp", address)
+			if err != nil {
+				logger.Error("failed to tls dial", "adress", address, "err", err)
+				errs = append(errs, err)
+			}
+			return smtp.NewClient(conn), nil
+		}
+	}
+
+	dialStartTls := func(logger *slog.Logger, tlsConfig *tls.Config, address string) func() (*smtp.Client, error) {
+		return func() (*smtp.Client, error) {
+			conn, err := s.defaultDialer.Dial("tcp", address)
+			if err != nil {
+				errs = append(errs, err)
+				logger.Error("failed to dial for start TLS", "err", err)
+				return nil, err
+			}
+			return smtp.NewClientStartTLS(conn, tlsConfig)
+		}
+	}
+
+	dialSmpt := func(logger *slog.Logger, address string) func() (*smtp.Client, error) {
+		return func() (*smtp.Client, error) {
+			conn, err := s.defaultDialer.Dial("tcp", address)
+			if err != nil {
+				errs = append(errs, err)
+				logger.Error("failed to dial smtp", "err", err)
+				return nil, err
+			}
+			// Assume smtp for testing
+			c = smtp.NewClient(conn)
+			return c, nil
+		}
+	}
+
+	dialFuncs := []func() (*smtp.Client, error){}
 	for _, port := range s.mxPorts {
 		logger := logger.With("port", port)
 		address := fmt.Sprintf("%s:%d", host, port)
 		tlsConfig := &tls.Config{ServerName: host}
 
-		dialTls := func(address string) (conn net.Conn, err error) {
-			tlsDialer := tls.Dialer{
-				NetDialer: s.defaultDialer,
-				Config:    tlsConfig,
-			}
-			conn, err = tlsDialer.Dial("tcp", address)
-			if err != nil {
-				logger.Error("failed to tls dial", "port", port, "err", err)
-				errs = append(errs, err)
-			}
-			return
-		}
-
 		switch port {
 		case 25:
-			conn, err := s.defaultDialer.Dial("tcp", address)
-			if err != nil {
-				errs = append(errs, err)
-				logger.Error("failed to dial for start TLS", "err", err)
-				continue
-			}
-			c, err = smtp.NewClientStartTLS(conn, tlsConfig)
-			if err != nil {
-				errs = append(errs, err)
-				logger.Error("failed to run start TLS on connection", "err", err)
-				continue
-			}
+			dialFuncs = append(dialFuncs, dialStartTls(logger, tlsConfig, address))
 		case 587, 465:
-			conn, err := dialTls(address)
-			if err != nil {
-				continue
-			}
-			c = smtp.NewClient(conn)
+			dialFuncs = append(dialFuncs, dialTls(logger, tlsConfig, address))
 		default:
-			conn, err := s.defaultDialer.Dial("tcp", address)
-			if err != nil {
-				logger.Error("failed to dial smtp", "err", err)
-				errs = append(errs, err)
-				continue
-			}
-			// Assume smtp for testing
-			c = smtp.NewClient(conn)
+			dialFuncs = append(dialFuncs, dialSmpt(logger, address))
 		}
 		if c != nil {
 			logger.Info("succeeded dialing mx host")
@@ -243,8 +251,7 @@ func (s *Sender) dialHost(host string) (c *smtp.Client, err error) {
 			return c, nil
 		}
 	}
-	err = errors.Join(errs...)
-	return
+	return resolveParallel(dialFuncs...)
 }
 
 func (s *Sender) smtpDialog(c *smtp.Client, msg *QueuedMessage) error {
