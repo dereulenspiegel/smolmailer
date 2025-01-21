@@ -60,5 +60,7 @@ jobs:
           args: release --snapshot --clean
       - name: Push dev images to ghcr.io
         run: |
-          docker push ghcr.io/dereulenspiegel/smolmailer:latest-amd64
-          docker push ghcr.io/dereulenspiegel/smolmailer:latest-arm64
+          docker tag ghcr.io/dereulenspiegel/smolmailer:latest-amd64 ghcr.io/dereulenspiegel/smolmailer:latest-dev-amd64
+          docker push ghcr.io/dereulenspiegel/smolmailer:latest-dev-amd64
+          docker tag ghcr.io/dereulenspiegel/smolmailer:latest-arm64 ghcr.io/dereulenspiegel/smolmailer:latest-dev-arm64
+          docker push ghcr.io/dereulenspiegel/smolmailer:latest-dev-arm64
