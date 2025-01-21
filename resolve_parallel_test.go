@@ -33,8 +33,8 @@ func TestResolveParallelSuccess(t *testing.T) {
 	runDuration := stop.Sub(start)
 	require.NoError(t, err)
 	assert.NotNil(t, res)
-	assert.LessOrEqual(t, time.Millisecond*400, runDuration)
-	assert.Less(t, runDuration, time.Millisecond*1000)
+	assert.LessOrEqual(t, time.Millisecond*300, runDuration)
+	assert.Less(t, runDuration, time.Millisecond*400)
 }
 
 func TestResolveParallelFail(t *testing.T) {
