@@ -7,15 +7,32 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
+type mockCloser struct {
+	mock.Mock
+}
+
+func (m *mockCloser) Close() error {
+	return m.Called().Error(0)
+}
 func TestResolveParallelSuccess(t *testing.T) {
 	fabFail := func(delay time.Duration) func() (io.Closer, error) {
 		return func() (io.Closer, error) {
 			time.Sleep(delay)
 			return nil, errors.New("failed after sleep")
 		}
+	}
+
+	failedResult := new(mockCloser)
+	failedResult.On("Close").Once().Return(nil)
+
+	fSlow := func() (io.Closer, error) {
+		time.Sleep(time.Millisecond * 310)
+
+		return failedResult, nil
 	}
 
 	fSuccess := func() (io.Closer, error) {
@@ -28,13 +45,16 @@ func TestResolveParallelSuccess(t *testing.T) {
 	ff3 := fabFail(time.Millisecond * 400)
 
 	start := time.Now()
-	res, err := resolveParallel(ff1, fSuccess, ff2, ff3)
+	res, err := resolveParallel(ff1, fSlow, fSuccess, ff2, ff3)
 	stop := time.Now()
 	runDuration := stop.Sub(start)
 	require.NoError(t, err)
 	assert.NotNil(t, res)
 	assert.LessOrEqual(t, time.Millisecond*300, runDuration)
 	assert.Less(t, runDuration, time.Millisecond*400)
+
+	time.Sleep(time.Millisecond * 400)
+	failedResult.AssertExpectations(t)
 }
 
 func TestResolveParallelFail(t *testing.T) {

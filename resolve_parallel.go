@@ -8,7 +8,6 @@ import (
 
 func resolveParallel[T io.Closer](rfs ...func() (T, error)) (T, error) {
 	resChan := make(chan T, len(rfs))
-	defer close(resChan)
 	errChan := make(chan error, len(rfs))
 	wg := &sync.WaitGroup{}
 	waitChan := make(chan struct{}, 1)
@@ -18,10 +17,7 @@ func resolveParallel[T io.Closer](rfs ...func() (T, error)) (T, error) {
 			defer wg.Done()
 			res, err := rf()
 			if err != nil {
-				// Try to write into the errChan, which might be closed already
-				select {
-				case errChan <- err:
-				}
+				errChan <- err
 				return
 			}
 			select {
@@ -32,11 +28,12 @@ func resolveParallel[T io.Closer](rfs ...func() (T, error)) (T, error) {
 			}
 		}(resChan, errChan, wg, rf)
 	}
-	go func(waitChan chan struct{}, errChan chan error, wg *sync.WaitGroup) {
+	go func(waitChan chan struct{}, errChan chan error, resChan chan T, wg *sync.WaitGroup) {
 		wg.Wait()
 		close(waitChan)
 		close(errChan)
-	}(waitChan, errChan, wg)
+		close(resChan)
+	}(waitChan, errChan, resChan, wg)
 	var res T
 	select {
 	case res = <-resChan:
