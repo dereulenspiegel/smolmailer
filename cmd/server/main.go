@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -52,7 +53,7 @@ func main() {
 			panic(err)
 		}
 
-		q, err := smolmailer.NewGenericPersistentQueue[*smolmailer.QueuedMessage]("backend-queue", cfg.QueuePath, 50)
+		q, err := smolmailer.NewSQLiteWorkQueue[*smolmailer.QueuedMessage](filepath.Join(cfg.QueuePath, "queue.db"), "send.queue", 10, 300)
 		if err != nil {
 			logger.Error("failed to create queue", "err", err)
 			panic(err)

@@ -28,8 +28,8 @@ func (s *serverDebugLogger) Println(v ...interface{}) {
 
 func TestSendMail(t *testing.T) {
 	ctx := context.Background()
-	q := NewGenericQueueMock[*QueuedMessage](t)
-	q.On("Send", mock.IsType(&QueuedMessage{})).Return(nil)
+	q := NewGenericWorkQueueMock[*QueuedMessage](t)
+	q.On("Queue", mock.AnythingOfType("context.backgroundCtx"), mock.IsType(&QueuedMessage{}), mock.AnythingOfType("smolmailer.queueOption")).Return(nil)
 
 	userPasswd, err := encodePassword("example", must(pbkdf2OnlyHasher()))
 	require.NoError(t, err)

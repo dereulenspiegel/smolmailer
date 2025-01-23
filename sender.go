@@ -20,8 +20,6 @@ import (
 
 	"github.com/emersion/go-msgauth/dkim"
 	"github.com/emersion/go-smtp"
-	"github.com/mroth/jitter"
-	"github.com/scaleway/scaleway-sdk-go/logger"
 )
 
 const retryQueueName = "retry-queue"
@@ -29,15 +27,12 @@ const retryQueueName = "retry-queue"
 const maxRetries = 10
 
 type Sender struct {
-	cfg        *Config
-	q          GenericQueue[*QueuedMessage]
-	retryQueue GenericQueue[*QueuedMessage]
-	logger     *slog.Logger
+	cfg    *Config
+	q      GenericWorkQueue[*QueuedMessage]
+	logger *slog.Logger
 
 	ctx       context.Context
 	ctxCancel context.CancelFunc
-
-	retryCancel context.CancelFunc
 
 	mxResolver func(string) ([]*net.MX, error)
 	mxPorts    []int
@@ -47,15 +42,9 @@ type Sender struct {
 	dkimOptions *dkim.SignOptions
 }
 
-func NewSender(ctx context.Context, logger *slog.Logger, cfg *Config, q GenericQueue[*QueuedMessage]) (*Sender, error) {
+func NewSender(ctx context.Context, logger *slog.Logger, cfg *Config, q GenericWorkQueue[*QueuedMessage]) (*Sender, error) {
 	bCtx, cancel := context.WithCancel(ctx)
-	retryCtx, retryCancel := context.WithCancel(ctx)
-	retryQueue, err := NewGenericPersistentQueue[*QueuedMessage](retryQueueName, cfg.QueuePath, 50)
-	if err != nil {
-		cancel()
-		retryCancel()
-		return nil, fmt.Errorf("failed to create retry queue: %w", err)
-	}
+
 	dialer := &net.Dialer{
 		Timeout: time.Second * 30,
 	}
@@ -70,13 +59,11 @@ func NewSender(ctx context.Context, logger *slog.Logger, cfg *Config, q GenericQ
 
 	if cfg.Dkim == nil {
 		cancel()
-		retryCancel()
 		return nil, errors.New("no dkim config specified")
 	}
 	dkimKey, err := parseDkimKey(cfg.Dkim.PrivateKey)
 	if err != nil {
 		cancel()
-		retryCancel()
 		return nil, fmt.Errorf("invalid dkim key: %w", err)
 	}
 
@@ -89,9 +76,7 @@ func NewSender(ctx context.Context, logger *slog.Logger, cfg *Config, q GenericQ
 	s := &Sender{
 		ctx:           bCtx,
 		ctxCancel:     cancel,
-		retryCancel:   retryCancel,
 		q:             q,
-		retryQueue:    retryQueue,
 		cfg:           cfg,
 		mxResolver:    lookupMX,
 		logger:        logger,
@@ -109,80 +94,49 @@ func NewSender(ctx context.Context, logger *slog.Logger, cfg *Config, q GenericQ
 		},
 	}
 	go s.run()
-	go s.runRetry(retryCtx)
 	return s, nil
 }
 
 func (s *Sender) Close() error {
-	qErr := s.retryQueue.Close()
 	s.ctxCancel()
-	s.retryCancel()
-	return errors.Join(qErr)
-}
-
-func (s *Sender) runRetry(ctx context.Context) {
-	ticker := jitter.NewTicker(time.Minute*5, 0.1)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			for msg, err := s.retryQueue.Receive(); err == nil; {
-				s.trySend(msg)
-			}
-		}
-	}
+	return nil
 }
 
 func (s *Sender) run() {
-	for {
-		select {
-		case <-s.ctx.Done():
-			return
-		default:
-			msg, err := s.q.Receive()
-			if err == ErrQueueEmpty {
-				continue
-			} else if err != nil {
-				s.logger.Error("failed to read from queue", "err", err)
-				continue
-			}
-			logger.Infof("processing message", "from", msg.From, "to", msg.To, "envelopeId", msg.MailOpts.EnvelopeID)
-			go func(msg *QueuedMessage) {
-				if msg.MailOpts == nil {
-					// TODO generate envelope id if missing
-					msg.MailOpts = &smtp.MailOptions{}
-				}
-				logger := s.logger.With("from", msg.From, "msgid", msg.MailOpts.EnvelopeID)
 
-				signedBuf := &bytes.Buffer{}
-				if err := dkim.Sign(signedBuf, bytes.NewReader(msg.Body), s.dkimOptions); err != nil {
-					logger.Error("failed to sign message", "err", err)
-				}
-				msg.Body = signedBuf.Bytes()
-				logger.Info("trying to send message")
-				go s.trySend(msg)
-			}(msg)
-		}
+	if err := s.q.Consume(s.ctx, s.trySend); err != nil {
+		s.logger.Error("failed to consume queue", "err", err)
+		return
 	}
 }
 
-func (s *Sender) trySend(msg *QueuedMessage) {
-	logger := s.logger.With("from", msg.From, "to", msg.To, "envelopeId", msg.MailOpts.EnvelopeID)
+func (s *Sender) trySend(ctx context.Context, msg *QueuedMessage) error {
+	if msg.MailOpts == nil {
+		// TODO generate envelope id if missing
+		msg.MailOpts = &smtp.MailOptions{}
+	}
+	logger := s.logger.With("from", msg.From, "to", msg.To, "msgid", msg.MailOpts.EnvelopeID)
+
+	signedBuf := &bytes.Buffer{}
+	if err := dkim.Sign(signedBuf, bytes.NewReader(msg.Body), s.dkimOptions); err != nil {
+		logger.Error("failed to sign message", "err", err)
+		return err
+	}
+	msg.Body = signedBuf.Bytes()
 	err := s.sendMail(msg)
 	if err != nil {
-
 		msg.LastErr = err
 		msg.ErrorCount++
 		logger.Error("failed to deliver mail", "err", err, "errorCount", msg.ErrorCount)
 		if msg.ErrorCount >= maxRetries {
 			logger.Error("giving up delivering mail", "errorCount", msg.ErrorCount, "err", err)
 		}
-		if err := s.retryQueue.Send(msg); err != nil {
-			logger.Error("failed to enqueue message")
+		attempts := maxRetries - msg.ErrorCount
+		if err := s.q.Queue(s.ctx, msg, QueueWithAttempts(attempts), QueueAfter(time.Minute*5)); err != nil {
+			logger.Error("failed to requeue failed message", "err", err)
 		}
 	}
+	return nil
 }
 
 func (s *Sender) dialHost(host string) (c *smtp.Client, err error) {

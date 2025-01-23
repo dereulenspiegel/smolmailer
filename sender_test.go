@@ -6,6 +6,7 @@ import (
 	"log"
 	"log/slog"
 	"net"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -28,11 +29,8 @@ func TestDeliverMail(t *testing.T) {
 		MailOpts:   &smtp.MailOptions{},
 	}
 
-	sq := NewGenericQueueMock[*QueuedMessage](t)
-	sq.On("Receive").Return(func() (*QueuedMessage, error) {
-		time.Sleep(100)
-		return nil, ErrQueueEmpty
-	})
+	sq, err := NewSQLiteWorkQueue[*QueuedMessage](filepath.Join(t.TempDir(), "queue.db"), "send.queue", 1, 300)
+	require.NoError(t, err)
 
 	sender, err := NewSender(ctx, slog.With("component", "sender"), &Config{
 		Domain:    "example.com",
@@ -70,7 +68,7 @@ MC4CAQAwBQYDK2VwBCIEIJhGWXSKnABUEcPSYV00xfxhR6sf/3iEsJfrOxE3H/3r
 		return []*net.MX{mxRecord}, nil
 	}
 
-	err = sender.sendMail(msg)
+	err = sq.Queue(context.Background(), msg)
 	require.NoError(t, err)
 }
 

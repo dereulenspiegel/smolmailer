@@ -11,4 +11,5 @@ packages:
     interfaces:
       # select the interfaces you want mocked
       GenericQueue:
+      GenericWorkQueue:
       userService:

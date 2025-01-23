@@ -27,7 +27,7 @@ type userService interface {
 }
 
 type Backend struct {
-	q      GenericQueue[*QueuedMessage]
+	q      GenericWorkQueue[*QueuedMessage]
 	cfg    *Config
 	logger *slog.Logger
 	ctx    context.Context
@@ -91,7 +91,7 @@ func (b *Backend) findUserByUsername(username string) *UserConfig {
 	return nil
 }
 
-func NewBackend(ctx context.Context, logger *slog.Logger, q GenericQueue[*QueuedMessage], cfg *Config) (*Backend, error) {
+func NewBackend(ctx context.Context, logger *slog.Logger, q GenericWorkQueue[*QueuedMessage], cfg *Config) (*Backend, error) {
 	b := &Backend{
 		q:      q,
 		cfg:    cfg,
@@ -163,14 +163,14 @@ type Session struct {
 
 	authenticatedSubject string
 
-	q       GenericQueue[*QueuedMessage]
+	q       GenericWorkQueue[*QueuedMessage]
 	userSrv userService
 	logger  *slog.Logger
 	ctx     context.Context
 	logVals []slog.Attr
 }
 
-func NewSession(ctx context.Context, logger *slog.Logger, q GenericQueue[*QueuedMessage], userSrv userService) *Session {
+func NewSession(ctx context.Context, logger *slog.Logger, q GenericWorkQueue[*QueuedMessage], userSrv userService) *Session {
 	logger.Info("Starting new session")
 	return &Session{
 		Msg:     &ReceivedMessage{},
@@ -230,7 +230,7 @@ func (s *Session) Data(r io.Reader) (err error) {
 	}
 
 	for _, msg := range s.Msg.QueuedMessages() {
-		if err := s.q.Send(msg); err != nil {
+		if err := s.q.Queue(s.ctx, msg, QueueWithAttempts(3)); err != nil {
 			logger.Error("failed to queue message", "err", err)
 			return fmt.Errorf("failed to queue message: %w", err)
 		}

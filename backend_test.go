@@ -55,16 +55,16 @@ func TestValidateIPRange(t *testing.T) {
 
 func TestSessionQueuesSuccessfully(t *testing.T) {
 	ctx := context.Background()
-	q := NewGenericQueueMock[*QueuedMessage](t)
+	q := NewGenericWorkQueueMock[*QueuedMessage](t)
 	usrSrv := newUserServiceMock(t)
 
 	usrSrv.On("IsValidSender", "validUser", "valid@example.com").Return(true)
 
 	sess := NewSession(ctx, slog.Default(), q, usrSrv)
 
-	q.On("Send", mock.MatchedBy(func(msg *QueuedMessage) bool {
+	q.On("Queue", mock.AnythingOfType("context.backgroundCtx"), mock.MatchedBy(func(msg *QueuedMessage) bool {
 		return msg.From == "valid@example.com" && msg.To == "valid@example.com" && string(msg.Body) == "test"
-	})).Return(nil)
+	}), mock.AnythingOfType("smolmailer.queueOption")).Return(nil)
 
 	sess.authenticatedSubject = "validUser" // Pretend we went through authentication
 	require.NoError(t, sess.Mail("valid@example.com", &smtp.MailOptions{}))
