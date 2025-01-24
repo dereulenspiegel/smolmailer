@@ -31,20 +31,15 @@ func TestSendMail(t *testing.T) {
 	q := NewGenericWorkQueueMock[*QueuedMessage](t)
 	q.On("Queue", mock.AnythingOfType("context.backgroundCtx"), mock.IsType(&QueuedMessage{}), mock.AnythingOfType("smolmailer.queueOption")).Return(nil)
 
-	userPasswd, err := encodePassword("example", must(pbkdf2OnlyHasher()))
-	require.NoError(t, err)
+	usrSrv := newUserServiceMock(t)
+	usrSrv.On("Authenticate", "test", "example").Return(nil)
+	usrSrv.On("IsValidSender", "test", "from@example.com").Return(true)
+
 	cfg := &Config{
 		ListenAddr: "[::1]:4465", // TODO get random port
 		Domain:     "example.com",
-		Users: []*UserConfig{
-			{
-				Username: "test",
-				Password: userPasswd,
-				FromAddr: "from@example.com",
-			},
-		},
 	}
-	b, err := NewBackend(ctx, slog.Default(), q, cfg)
+	b, err := NewBackend(ctx, slog.Default(), q, usrSrv, cfg)
 	require.NoError(t, err)
 
 	tcpListener, err := net.Listen("tcp", "[::1]:0")

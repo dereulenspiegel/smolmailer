@@ -14,7 +14,6 @@ import (
 
 	"github.com/emersion/go-sasl"
 	"github.com/emersion/go-smtp"
-	"github.com/go-crypt/crypt"
 )
 
 type backendQueue interface {
@@ -27,14 +26,13 @@ type userService interface {
 }
 
 type Backend struct {
-	q      GenericWorkQueue[*QueuedMessage]
-	cfg    *Config
-	logger *slog.Logger
-	ctx    context.Context
+	q       GenericWorkQueue[*QueuedMessage]
+	cfg     *Config
+	logger  *slog.Logger
+	ctx     context.Context
+	userSrv userService
 
 	allowedIPNets []*net.IPNet
-
-	passwdDecoder *crypt.Decoder
 }
 
 func (b *Backend) NewSession(conn *smtp.Conn) (smtp.Session, error) {
@@ -42,27 +40,7 @@ func (b *Backend) NewSession(conn *smtp.Conn) (smtp.Session, error) {
 	if !b.isValidRemoteAddr(remoteAddr) {
 		return nil, fmt.Errorf("the client %s is not allowed to send messages", remoteAddr.String())
 	}
-	return NewSession(b.ctx, b.logger.With("session", true, "remoteAddr", conn.Conn().RemoteAddr().String()), b.q, b), nil
-}
-
-func (b *Backend) Authenticate(username, password string) error {
-	user := b.findUserByUsername(username)
-	if user == nil {
-		return fmt.Errorf("user %s is not valid", username)
-	}
-	digest, err := b.passwdDecoder.Decode(user.Password)
-	if err != nil {
-		return fmt.Errorf("invalid password digest for user %s: %w", username, err)
-	}
-	if !digest.Match(password) {
-		return fmt.Errorf("invalid password for user %s", username)
-	}
-	return nil
-}
-
-func (b *Backend) IsValidSender(username, from string) bool {
-	user := b.findUserByUsername(username)
-	return user != nil && user.FromAddr == from
+	return NewSession(b.ctx, b.logger.With("session", true, "remoteAddr", conn.Conn().RemoteAddr().String()), b.q, b.userSrv), nil
 }
 
 func (b *Backend) isValidRemoteAddr(remoteAddr net.Addr) bool {
@@ -82,21 +60,13 @@ func (b *Backend) isValidRemoteAddr(remoteAddr net.Addr) bool {
 	return false
 }
 
-func (b *Backend) findUserByUsername(username string) *UserConfig {
-	for _, user := range b.cfg.Users {
-		if user.Username == username {
-			return user
-		}
-	}
-	return nil
-}
-
-func NewBackend(ctx context.Context, logger *slog.Logger, q GenericWorkQueue[*QueuedMessage], cfg *Config) (*Backend, error) {
+func NewBackend(ctx context.Context, logger *slog.Logger, q GenericWorkQueue[*QueuedMessage], userSrv userService, cfg *Config) (*Backend, error) {
 	b := &Backend{
-		q:      q,
-		cfg:    cfg,
-		logger: logger,
-		ctx:    ctx,
+		q:       q,
+		cfg:     cfg,
+		logger:  logger,
+		ctx:     ctx,
+		userSrv: userSrv,
 	}
 	for _, netString := range cfg.AllowedIPRanges {
 		_, ipNet, err := net.ParseCIDR(netString)
@@ -105,12 +75,6 @@ func NewBackend(ctx context.Context, logger *slog.Logger, q GenericWorkQueue[*Qu
 		}
 		b.allowedIPNets = append(b.allowedIPNets, ipNet)
 	}
-
-	passwdDecoder, err := pbkdf2OnlyDecoder()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create password decoder: %w", err)
-	}
-	b.passwdDecoder = passwdDecoder
 
 	return b, nil
 }

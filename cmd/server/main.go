@@ -58,9 +58,15 @@ func main() {
 			logger.Error("failed to create queue", "err", err)
 			panic(err)
 		}
+
+		userSrv, err := smolmailer.NewUserService(cfg.UserFile)
+		if err != nil {
+			logger.Error("failed to create user service", "err", err)
+			panic(err)
+		}
 		backendCtx, backendCancel := context.WithCancel(ctx)
 		defer backendCancel()
-		b, err := smolmailer.NewBackend(backendCtx, logger.With("component", "backend"), q, cfg)
+		b, err := smolmailer.NewBackend(backendCtx, logger.With("component", "backend"), q, userSrv, cfg)
 		if err != nil {
 			logger.Error("failed to create backend", "err", err)
 			panic(err)

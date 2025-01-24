@@ -33,25 +33,23 @@ func (d *DkimOpts) IsValid() error {
 }
 
 type Config struct {
-	Domain          string        `mapstructure:"domain"`
-	ListenAddr      string        `mapstructure:"listenAddr"`
-	ListenTls       bool          `mapstructure:"listenTls"`
-	LogLevel        string        `mapstructure:"logLevel"`
-	SendAddr        string        `mapstructure:"sendAddr"`
-	QueuePath       string        `mapstructure:"queuePath"`
-	Users           []*UserConfig `mapstructure:"users"`
-	AllowedIPRanges []string      `mapstructure:"allowedIPRanges"`
-	Acme            *acme.Config  `mapstructure:"acme"`
-	Dkim            *DkimOpts     `mapstructure:"dkim"`
+	Domain          string       `mapstructure:"domain"`
+	ListenAddr      string       `mapstructure:"listenAddr"`
+	ListenTls       bool         `mapstructure:"listenTls"`
+	LogLevel        string       `mapstructure:"logLevel"`
+	SendAddr        string       `mapstructure:"sendAddr"`
+	QueuePath       string       `mapstructure:"queuePath"`
+	UserFile        string       `mapstucture:"userFile"`
+	AllowedIPRanges []string     `mapstructure:"allowedIPRanges"`
+	Acme            *acme.Config `mapstructure:"acme"`
+	Dkim            *DkimOpts    `mapstructure:"dkim"`
 }
 
 func (c *Config) IsValid() error {
 	if c.Domain == "" {
 		return fmt.Errorf("'Domain' not set but required")
 	}
-	if len(c.Users) == 0 {
-		return fmt.Errorf("no users configured")
-	}
+
 	if err := c.Dkim.IsValid(); err != nil {
 		return err
 	}
@@ -70,6 +68,7 @@ func ConfigDefaults() {
 	viper.SetDefault("logLevel", must(slog.LevelInfo.MarshalText()))
 	viper.SetDefault("sendAddr", "")
 	viper.SetDefault("queuePath", "/data/qeues")
+	viper.SetDefault("userFile", "/config/users.yaml")
 	viper.SetDefault("dkim.selector", "")
 	viper.SetDefault("dkim.privateKey", "")
 	viper.SetDefault("acme.automaticRenew", true)
