@@ -37,7 +37,6 @@ func main() {
 		smolmailer.ConfigDefaults()
 		if err := viper.ReadInConfig(); err != nil && !errors.Is(err, &viper.ConfigFileNotFoundError{}) {
 			logger.Warn("failed to read config", "err", err)
-			panic(err)
 		}
 		cfg := &smolmailer.Config{}
 		if err := viper.Unmarshal(cfg); err != nil {
