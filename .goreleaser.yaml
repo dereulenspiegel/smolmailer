@@ -22,13 +22,16 @@ builds:
       # - CGO_ENABLED=0
     goos:
       - linux
-      - freebsd
     goarch:
       - "amd64"
       - "arm64"
     goamd64:
       - v2
     mod_timestamp: "{{ .CommitTimestamp }}"
+    ldflags:
+      - -extldflags=-static
+    tags:
+      - sqlite_omit_load_extension
 
 archives:
   - format: tar.gz
