@@ -3,6 +3,7 @@ package smolmailer
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/go-crypt/crypt"
@@ -12,6 +13,7 @@ import (
 type UserService struct {
 	users         map[string]*UserConfig
 	passwdDecoder *crypt.Decoder
+	logger        *slog.Logger
 }
 
 var (
@@ -19,7 +21,7 @@ var (
 	ErrInvalidCredentials = errors.New("invalid credentials")
 )
 
-func NewUserService(userFilePath string) (*UserService, error) {
+func NewUserService(logger *slog.Logger, userFilePath string) (*UserService, error) {
 
 	userFileBytes, err := os.ReadFile(userFilePath)
 	if err != nil {
@@ -42,26 +44,33 @@ func NewUserService(userFilePath string) (*UserService, error) {
 	us := &UserService{
 		users:         userMap,
 		passwdDecoder: passwdDecoder,
+		logger:        logger,
 	}
 
 	return us, nil
 }
 
 func (u *UserService) Authenticate(username, password string) error {
+	logger := u.logger.With("username", username)
 	if userCfg, exists := u.users[username]; !exists {
+		logger.Warn("user not found")
 		return ErrUserNotFound
 	} else {
 		if userCfg.Username != username {
+			logger.Warn("user name inconsistent")
 			return ErrInvalidCredentials
 		}
 		if digest, err := u.passwdDecoder.Decode(password); err != nil {
+			logger.Error("failed to decode password digest", "err", err)
 			return ErrInvalidCredentials
 		} else {
 			if !digest.Match(password) {
+				logger.Warn("password does not match")
 				return ErrInvalidCredentials
 			}
 		}
 	}
+	logger.Debug("user authenticated successfully")
 	return nil
 }
 

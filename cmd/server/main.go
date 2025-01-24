@@ -63,7 +63,7 @@ func main() {
 			panic(err)
 		}
 
-		userSrv, err := smolmailer.NewUserService(cfg.UserFile)
+		userSrv, err := smolmailer.NewUserService(logger.With("component", "UserService"), cfg.UserFile)
 		if err != nil {
 			logger.Error("failed to create user service", "err", err)
 			panic(err)
