@@ -52,6 +52,11 @@ func main() {
 			panic(err)
 		}
 
+		if err := os.MkdirAll(cfg.QueuePath, 0770); err != nil {
+			logger.Error("failed to ensure queue folder exists", "err", err, "queuePath", cfg.QueuePath)
+			panic(err)
+		}
+
 		q, err := smolmailer.NewSQLiteWorkQueue[*smolmailer.QueuedMessage](filepath.Join(cfg.QueuePath, "queue.db"), "send.queue", 10, 300)
 		if err != nil {
 			logger.Error("failed to create queue", "err", err)

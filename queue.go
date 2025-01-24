@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/khepin/liteq"
@@ -16,6 +17,9 @@ type QueueError struct {
 }
 
 func (q *QueueError) Error() string {
+	if q.cause != nil {
+		return fmt.Sprintf("%s. caused by: %s", q.message, q.cause.Error())
+	}
 	return q.message
 }
 
