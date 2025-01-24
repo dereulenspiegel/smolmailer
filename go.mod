@@ -2,6 +2,8 @@ module github.com/dereulenspiegel/smolmailer
 
 go 1.23.3
 
+replace github.com/khepin/liteq => github.com/dereulenspiegel/liteq v0.1.1
+
 require (
 	github.com/emersion/go-msgauth v0.6.8
 	github.com/emersion/go-sasl v0.0.0-20241020182733-b788ff22d5a6
