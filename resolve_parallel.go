@@ -3,6 +3,7 @@ package smolmailer
 import (
 	"errors"
 	"io"
+	"reflect"
 	"sync"
 )
 
@@ -39,8 +40,10 @@ func resolveParallel[T io.Closer](rfs ...func() (T, error)) (T, error) {
 	case res = <-resChan:
 		go func(resChan chan T) {
 			for unusedRes := range resChan {
-				// Close the unused results
-				unusedRes.Close()
+				if !isNil(unusedRes) {
+					// Close the unused results
+					unusedRes.Close()
+				}
 			}
 		}(resChan)
 
@@ -53,4 +56,17 @@ func resolveParallel[T io.Closer](rfs ...func() (T, error)) (T, error) {
 		}
 		return res, errors.Join(errs...)
 	}
+}
+
+func isNil[T any](t T) bool {
+	v := reflect.ValueOf(t)
+	kind := v.Kind()
+	// Must be one of these types to be nillable
+	return (kind == reflect.Ptr ||
+		kind == reflect.Interface ||
+		kind == reflect.Slice ||
+		kind == reflect.Map ||
+		kind == reflect.Chan ||
+		kind == reflect.Func) &&
+		v.IsNil()
 }
