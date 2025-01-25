@@ -66,7 +66,7 @@ func (u *UserService) Authenticate(username, password string) error {
 	logger := u.logger.With("username", username)
 	if userCfg, exists := u.users[username]; !exists {
 		logger.Warn("user not found")
-		return ErrUserNotFound
+		return ErrInvalidCredentials
 	} else {
 		if userCfg.Username != username {
 			logger.Warn("user name inconsistent")
@@ -76,8 +76,11 @@ func (u *UserService) Authenticate(username, password string) error {
 			logger.Error("failed to decode password digest", "err", err)
 			return ErrInvalidCredentials
 		} else {
-			if !digest.Match(password) {
-				logger.Warn("password does not match")
+			if matched, err := digest.MatchAdvanced(password); !matched {
+				logger.Warn("password does not match", "err", err)
+				return ErrInvalidCredentials
+			} else if err != nil {
+				logger.Error("password matched, but we got an error, that shouldn't happen", "err", err)
 				return ErrInvalidCredentials
 			}
 		}
