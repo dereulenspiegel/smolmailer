@@ -11,12 +11,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-type UserConfig struct {
-	Username string `mapstructure:"username"`
-	Password string `mapstructure:"password"` // Securely hashed password
-	FromAddr string `mapstructure:"from"`
-}
-
 type DkimOpts struct {
 	Selector   string `mapstructure:"selector"`
 	PrivateKey string `mapstructure:"privateKey"`

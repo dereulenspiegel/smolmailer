@@ -10,6 +10,12 @@ import (
 	yaml "gopkg.in/yaml.v3"
 )
 
+type UserConfig struct {
+	Username string `mapstructure:"username" yaml:"username"`
+	Password string `mapstructure:"password" yaml:"password"` // Securely hashed password
+	FromAddr string `mapstructure:"from" yaml:"from"`
+}
+
 type UserService struct {
 	users         map[string]*UserConfig
 	passwdDecoder *crypt.Decoder
