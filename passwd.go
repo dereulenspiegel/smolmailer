@@ -7,7 +7,7 @@ import (
 )
 
 func argon2idHasher() (algorithm.Hash, error) {
-	return argon2.New(argon2.WithProfileRFC9106Recommended())
+	return argon2.New(argon2.WithProfileRFC9106LowMemory())
 }
 
 func argon2Decoder() (decoder *crypt.Decoder, err error) {
