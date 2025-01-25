@@ -27,27 +27,33 @@ func NewUserService(logger *slog.Logger, userFilePath string) (*UserService, err
 	if err != nil {
 		return nil, fmt.Errorf("failed to read users from %s: %w", userFilePath, err)
 	}
-	userConfigs := []*UserConfig{}
-	if err := yaml.Unmarshal(userFileBytes, &userConfigs); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal user config %s: %w", userFilePath, err)
-	}
 
-	userMap := make(map[string]*UserConfig)
-	for _, userCfg := range userConfigs {
-		userMap[userCfg.Username] = userCfg
-	}
 	passwdDecoder, err := argon2Decoder()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create password decoder: %w", err)
 	}
 
 	us := &UserService{
-		users:         userMap,
 		passwdDecoder: passwdDecoder,
 		logger:        logger,
 	}
+	us.unmarshalConfig(userFileBytes)
 
 	return us, nil
+}
+
+func (u *UserService) unmarshalConfig(userFileBytes []byte) error {
+	userConfigs := []*UserConfig{}
+	if err := yaml.Unmarshal(userFileBytes, &userConfigs); err != nil {
+		return fmt.Errorf("failed to unmarshal user config: %w", err)
+	}
+
+	userMap := make(map[string]*UserConfig)
+	for _, userCfg := range userConfigs {
+		userMap[userCfg.Username] = userCfg
+	}
+	u.users = userMap
+	return nil
 }
 
 func (u *UserService) Authenticate(username, password string) error {
@@ -60,7 +66,7 @@ func (u *UserService) Authenticate(username, password string) error {
 			logger.Warn("user name inconsistent")
 			return ErrInvalidCredentials
 		}
-		if digest, err := u.passwdDecoder.Decode(password); err != nil {
+		if digest, err := u.passwdDecoder.Decode(userCfg.Password); err != nil {
 			logger.Error("failed to decode password digest", "err", err)
 			return ErrInvalidCredentials
 		} else {
