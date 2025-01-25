@@ -127,6 +127,9 @@ type Session struct {
 
 	authenticatedSubject string
 
+	plainAuthServer sasl.Server
+	loginAuthServer sasl.Server
+
 	q       GenericWorkQueue[*QueuedMessage]
 	userSrv userService
 	logger  *slog.Logger
@@ -136,13 +139,43 @@ type Session struct {
 
 func NewSession(ctx context.Context, logger *slog.Logger, q GenericWorkQueue[*QueuedMessage], userSrv userService) *Session {
 	logger.Info("Starting new session")
-	return &Session{
+	s := &Session{
 		Msg:     &ReceivedMessage{},
 		userSrv: userSrv,
 		q:       q,
 		logger:  logger,
 		ctx:     ctx,
 	}
+
+	s.plainAuthServer = sasl.NewPlainServer(func(identity, username, password string) error {
+		logger := logger.With(slog.String("username", username), slog.String("identity", identity))
+		logger.Debug("authenticating user")
+		if identity != "" && identity != username {
+			logger.Error("invalid identity")
+			return errors.New("invalid identity")
+		}
+		if err := s.userSrv.Authenticate(username, password); err != nil {
+			logger.Error("failed to authenticate user", "err", err)
+			return fmt.Errorf("failed to authenticate user %s: %w", username, err)
+		}
+		logger.Info("user authenticated successfully")
+		s.authenticatedSubject = username
+		return nil
+	})
+
+	s.loginAuthServer = NewLoginServer(func(username, password string) error {
+		logger := logger.With(slog.String("username", username))
+		logger.Debug("authenticating user")
+		if err := s.userSrv.Authenticate(username, password); err != nil {
+			logger.Error("failed to authenticate user", "err", err)
+			return err
+		}
+		logger.Info("user authenticated successfully")
+		s.authenticatedSubject = username
+		return nil
+	})
+
+	return s
 }
 
 func (s *Session) Mail(from string, opts *smtp.MailOptions) error {
@@ -209,39 +242,12 @@ func (s *Session) AuthMechanisms() []string {
 
 func (s *Session) Auth(mech string) (sasl.Server, error) {
 	logger := s.logWithGroup("Auth", slog.String("authMech", mech))
-	plainServer := sasl.NewPlainServer(func(identity, username, password string) error {
-		logger := logger.With(slog.String("username", username), slog.String("identity", identity))
-		logger.Debug("authenticating user")
-		if identity != "" && identity != username {
-			logger.Error("invalid identity")
-			return errors.New("invalid identity")
-		}
-		if err := s.userSrv.Authenticate(username, password); err != nil {
-			logger.Error("failed to authenticate user", "err", err)
-			return fmt.Errorf("failed to authenticate user %s: %w", username, err)
-		}
-		logger.Info("user authenticated successfully")
-		s.authenticatedSubject = username
-		return nil
-	})
-
-	loginServer := NewLoginServer(func(username, password string) error {
-		logger := logger.With(slog.String("username", username))
-		logger.Debug("authenticating user")
-		if err := s.userSrv.Authenticate(username, password); err != nil {
-			logger.Error("failed to authenticate user", "err", err)
-			return err
-		}
-		logger.Info("user authenticated successfully")
-		s.authenticatedSubject = username
-		return nil
-	})
 
 	switch mech {
 	case sasl.Plain:
-		return plainServer, nil
+		return s.plainAuthServer, nil
 	case sasl.Login:
-		return loginServer, nil
+		return s.loginAuthServer, nil
 	default:
 		logger.Error("unsupported auth method")
 		return nil, fmt.Errorf("unsupported auth method %s", mech)
