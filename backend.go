@@ -252,6 +252,7 @@ func (s *Session) Reset() {
 	logger := s.logWithGroup("Reset")
 	logger.Debug("session reset")
 	s.Msg = &ReceivedMessage{}
+	s.logVals = []slog.Attr{}
 }
 
 func (s *Session) Logout() error {
