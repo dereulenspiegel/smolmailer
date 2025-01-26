@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/emersion/go-msgauth/dkim"
 )
@@ -16,6 +17,8 @@ type PreprocessorHandler struct {
 
 	receiveProcessors []ReceiveProcessor
 	preprocessors     []PreSendProcessor
+
+	logger *slog.Logger
 }
 
 type ProcessingOpt func(*PreprocessorHandler)
@@ -40,12 +43,17 @@ func SendProcessor(ctx context.Context, sendingQueue GenericWorkQueue[*QueuedMes
 }
 
 func NewProcessorHandler(ctx context.Context,
+	logger *slog.Logger,
 	receivingQueue GenericWorkQueue[*ReceivedMessage], opts ...ProcessingOpt) (*PreprocessorHandler, error) {
 
 	p := &PreprocessorHandler{
 		receivingQueue:    receivingQueue,
 		receiveProcessors: make([]ReceiveProcessor, 0),
 		preprocessors:     make([]PreSendProcessor, 0),
+	}
+
+	for _, opt := range opts {
+		opt(p)
 	}
 
 	go p.runConsumeReceivingQueue(ctx)
@@ -58,22 +66,28 @@ func (p *PreprocessorHandler) runConsumeReceivingQueue(ctx context.Context) {
 }
 
 func (p *PreprocessorHandler) consumeReceivingQueue(ctx context.Context, receivedMsg *ReceivedMessage) (err error) {
+	logger := p.logger.With(slog.String("from", receivedMsg.From), slog.String("envelopeId", receivedMsg.MailOpts.EnvelopeID))
+	logger.Info("processing received message")
 	for _, receiveProcessor := range p.receiveProcessors {
 		receivedMsg, err = receiveProcessor(receivedMsg)
 		if err != nil {
+			logger.Error("failed to process received message", "err", err, "processor", fmt.Sprintf("%T", receiveProcessor))
 			return fmt.Errorf("failed to process received message: %w", err)
 		}
 	}
 
 	queuedMsgs, err := p.processReceivedMessage(receivedMsg)
 	if err != nil {
+		logger.Error("failed to transform received message into queued message", "err", err)
 		return fmt.Errorf("failed to transform received into queued message: %w", err)
 	}
 
 	for _, queuedMsg := range queuedMsgs {
+		logger := logger.With(slog.String("to", queuedMsg.To))
 		for _, pr := range p.preprocessors {
 			queuedMsg, err = pr(queuedMsg)
 			if err != nil {
+				logger.Error("failed to process queued message", "err", err, "processor", fmt.Sprintf("%T", pr))
 				return fmt.Errorf("failed to process queued msg: %w", err)
 			}
 		}

@@ -89,7 +89,7 @@ func main() {
 			dkimDomain := smolmailer.DkimDomain(cfg.Dkim.Selector, cfg.Domain)
 			logger.Info("Please add the following record to your DNS zone", "domain", dkimDomain, "recordValue", dkimRecordValue)
 		}
-		_, err = smolmailer.NewProcessorHandler(ctx, receiveQueue,
+		_, err = smolmailer.NewProcessorHandler(ctx, logger.With("component", "messageProcessing"), receiveQueue,
 			smolmailer.WithReceiveProcessors(smolmailer.DkimProcessor(&dkim.SignOptions{
 				Domain:   cfg.Domain,
 				Selector: cfg.Dkim.Selector,

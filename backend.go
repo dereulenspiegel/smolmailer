@@ -80,6 +80,10 @@ type Rcpt struct {
 	RcptOpts *smtp.RcptOptions
 }
 
+func (r *Rcpt) String() string {
+	return r.To
+}
+
 type ReceivedMessage struct {
 	From     string
 	To       []*Rcpt

@@ -91,6 +91,7 @@ func (s *Sender) trySend(ctx context.Context, msg *QueuedMessage) error {
 		msg.MailOpts = &smtp.MailOptions{}
 	}
 	logger := s.logger.With("from", msg.From, "to", msg.To, "msgid", msg.MailOpts.EnvelopeID)
+	logger.Info("sending mail")
 
 	err := s.sendMail(msg)
 	if err != nil {
