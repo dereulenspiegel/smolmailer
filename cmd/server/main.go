@@ -99,7 +99,8 @@ func main() {
 					"From", "Reply-to", "Subject", "Date", "To", "Cc", "Resent-Date", "Resent-From", "Resent-To", "Resent-Cc", "In-Reply-To", "References",
 					"List-Id", "List-Help", "List-Unsubscribe", "List-Subscribe", "List-Post", "List-Owner", "List-Archive",
 				},
-			})))
+			})),
+			smolmailer.WithPreSendProcessors(smolmailer.SendProcessor(ctx, sendQueue, smolmailer.QueueWithAttempts(3))))
 		if err != nil {
 			logger.Error("failed to create message processing", "err", err)
 			panic(err)
