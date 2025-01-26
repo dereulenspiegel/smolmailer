@@ -62,7 +62,7 @@ func main() {
 			panic(err)
 		}
 
-		liteDb, err := sql.Open("sqlite3", filepath.Join(cfg.QueuePath))
+		liteDb, err := sql.Open("sqlite3", filepath.Join(cfg.QueuePath, "mail.queue"))
 		if err != nil {
 			logger.Error("failed to open sqlite queue db", "err", err)
 			panic(err)
