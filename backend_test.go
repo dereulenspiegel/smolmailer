@@ -5,6 +5,7 @@ import (
 	"context"
 	"log/slog"
 	"net"
+	"net/netip"
 	"testing"
 
 	"github.com/emersion/go-smtp"
@@ -60,7 +61,7 @@ func TestSessionQueuesSuccessfully(t *testing.T) {
 
 	usrSrv.On("IsValidSender", "validUser", "valid@example.com").Return(true)
 
-	sess := NewSession(ctx, slog.Default(), q, usrSrv)
+	sess := NewSession(ctx, slog.Default(), q, usrSrv, net.TCPAddrFromAddrPort(netip.MustParseAddrPort("127.0.0.1:50000")))
 
 	q.On("Queue", mock.AnythingOfType("context.backgroundCtx"), mock.MatchedBy(func(msg *ReceivedMessage) bool {
 		return msg.From == "valid@example.com" && msg.To[0].To == "valid@example.com" && string(msg.Body) == "test"

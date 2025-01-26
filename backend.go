@@ -36,7 +36,7 @@ func (b *Backend) NewSession(conn *smtp.Conn) (smtp.Session, error) {
 	if !b.isValidRemoteAddr(remoteAddr) {
 		return nil, fmt.Errorf("the client %s is not allowed to send messages", remoteAddr.String())
 	}
-	return NewSession(b.ctx, b.logger.With("session", true, "remoteAddr", conn.Conn().RemoteAddr().String()), b.q, b.userSrv), nil
+	return NewSession(b.ctx, b.logger.With("session", true, "remoteAddr", conn.Conn().RemoteAddr().String()), b.q, b.userSrv, conn.Conn().RemoteAddr()), nil
 }
 
 func (b *Backend) isValidRemoteAddr(remoteAddr net.Addr) bool {
@@ -130,21 +130,24 @@ type Session struct {
 	plainAuthServer sasl.Server
 	loginAuthServer sasl.Server
 
-	q       GenericWorkQueue[*ReceivedMessage]
-	userSrv userService
-	logger  *slog.Logger
-	ctx     context.Context
-	logVals []slog.Attr
+	q          GenericWorkQueue[*ReceivedMessage]
+	userSrv    userService
+	logger     *slog.Logger
+	ctx        context.Context
+	logVals    []slog.Attr
+	remoteAddr net.Addr
 }
 
-func NewSession(ctx context.Context, logger *slog.Logger, q GenericWorkQueue[*ReceivedMessage], userSrv userService) *Session {
+func NewSession(ctx context.Context, logger *slog.Logger, q GenericWorkQueue[*ReceivedMessage], userSrv userService, remoteAddr net.Addr) *Session {
 	logger.Info("Starting new session")
 	s := &Session{
-		Msg:     &ReceivedMessage{},
-		userSrv: userSrv,
-		q:       q,
-		logger:  logger,
-		ctx:     ctx,
+		Msg:        &ReceivedMessage{},
+		userSrv:    userSrv,
+		q:          q,
+		logger:     logger,
+		ctx:        ctx,
+		remoteAddr: remoteAddr,
+		logVals:    []slog.Attr{slog.String("remoteAddr", remoteAddr.String())},
 	}
 
 	s.plainAuthServer = sasl.NewPlainServer(func(identity, username, password string) error {
@@ -270,5 +273,9 @@ func (s *Session) logWithGroup(stage string, additionalGroupVals ...slog.Attr) *
 }
 
 func (s *Session) LogValue() slog.Value {
+	if len(s.logVals) == 0 {
+		// Seems having 0 log vals causes a nil logger later on
+		s.logVals = append(s.logVals, slog.String("remoteAddr", s.remoteAddr.String()))
+	}
 	return slog.GroupValue(s.logVals...)
 }
