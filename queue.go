@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/khepin/liteq"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 type QueueError struct {
@@ -70,15 +69,11 @@ type SQLiteWorkQueue[T any] struct {
 	timeout   int
 }
 
-func NewSQLiteWorkQueue[T any](path, queueName string, poolSize, timeout int) (*SQLiteWorkQueue[T], error) {
-	liteDb, err := sql.Open("sqlite3", path)
-	if err != nil {
-		return nil, newQueueErrorWithCause("failed to open sqliteddb", err)
-	}
-	if err := liteq.Setup(liteDb); err != nil {
+func NewSQLiteWorkQueueOnDb[T any](db *sql.DB, queueName string, poolSize, timeout int) (*SQLiteWorkQueue[T], error) {
+	if err := liteq.Setup(db); err != nil {
 		return nil, newQueueErrorWithCause("failed to setup sqlte db", err)
 	}
-	q := liteq.New(liteDb)
+	q := liteq.New(db)
 	sq := &SQLiteWorkQueue[T]{
 		squeue:    q,
 		queueName: queueName,
@@ -86,6 +81,14 @@ func NewSQLiteWorkQueue[T any](path, queueName string, poolSize, timeout int) (*
 		timeout:   timeout,
 	}
 	return sq, nil
+}
+
+func NewSQLiteWorkQueue[T any](path, queueName string, poolSize, timeout int) (*SQLiteWorkQueue[T], error) {
+	liteDb, err := sql.Open("sqlite3", path)
+	if err != nil {
+		return nil, newQueueErrorWithCause("failed to open sqliteddb", err)
+	}
+	return NewSQLiteWorkQueueOnDb[T](liteDb, queueName, poolSize, timeout)
 }
 
 func (s *SQLiteWorkQueue[T]) Queue(ctx context.Context, item T, options ...queueOption) error {

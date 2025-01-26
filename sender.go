@@ -1,7 +1,6 @@
 package smolmailer
 
 import (
-	"bytes"
 	"context"
 	"crypto"
 	"crypto/ed25519"
@@ -18,7 +17,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/emersion/go-msgauth/dkim"
 	"github.com/emersion/go-smtp"
 )
 
@@ -38,8 +36,6 @@ type Sender struct {
 	mxPorts    []int
 
 	defaultDialer *net.Dialer
-
-	dkimOptions *dkim.SignOptions
 }
 
 func NewSender(ctx context.Context, logger *slog.Logger, cfg *Config, q GenericWorkQueue[*QueuedMessage]) (*Sender, error) {
@@ -61,17 +57,6 @@ func NewSender(ctx context.Context, logger *slog.Logger, cfg *Config, q GenericW
 		cancel()
 		return nil, errors.New("no dkim config specified")
 	}
-	dkimKey, err := parseDkimKey(cfg.Dkim.PrivateKey)
-	if err != nil {
-		cancel()
-		return nil, fmt.Errorf("invalid dkim key: %w", err)
-	}
-
-	dkimRecordValue, err := dkimTxtRecordContent(dkimKey)
-	if err == nil {
-		dkimDomain := dkimDomain(cfg.Dkim.Selector, cfg.Domain)
-		logger.Info("Please add the following record to your DNS zone", "domain", dkimDomain, "recordValue", dkimRecordValue)
-	}
 
 	s := &Sender{
 		ctx:           bCtx,
@@ -82,16 +67,6 @@ func NewSender(ctx context.Context, logger *slog.Logger, cfg *Config, q GenericW
 		logger:        logger,
 		mxPorts:       []int{25, 465, 587},
 		defaultDialer: dialer,
-		dkimOptions: &dkim.SignOptions{
-			Domain:   cfg.Domain,
-			Selector: cfg.Dkim.Selector,
-			Signer:   dkimKey,
-			Hash:     crypto.SHA256,
-			HeaderKeys: []string{ // Recommended headers according to https://www.rfc-editor.org/rfc/rfc6376.html#section-5.4.1
-				"From", "Reply-to", "Subject", "Date", "To", "Cc", "Resent-Date", "Resent-From", "Resent-To", "Resent-Cc", "In-Reply-To", "References",
-				"List-Id", "List-Help", "List-Unsubscribe", "List-Subscribe", "List-Post", "List-Owner", "List-Archive",
-			},
-		},
 	}
 	go s.run()
 	return s, nil
@@ -117,12 +92,6 @@ func (s *Sender) trySend(ctx context.Context, msg *QueuedMessage) error {
 	}
 	logger := s.logger.With("from", msg.From, "to", msg.To, "msgid", msg.MailOpts.EnvelopeID)
 
-	signedBuf := &bytes.Buffer{}
-	if err := dkim.Sign(signedBuf, bytes.NewReader(msg.Body), s.dkimOptions); err != nil {
-		logger.Error("failed to sign message", "err", err)
-		return err
-	}
-	msg.Body = signedBuf.Bytes()
 	err := s.sendMail(msg)
 	if err != nil {
 		msg.LastErr = err
@@ -284,7 +253,7 @@ func lookupMX(domain string) ([]*net.MX, error) {
 	return mxRecords, nil
 }
 
-func parseDkimKey(base64String string) (crypto.Signer, error) {
+func ParseDkimKey(base64String string) (crypto.Signer, error) {
 	// To be able to store this in env vars, we base64 encode it
 	pemString, err := base64.StdEncoding.DecodeString(base64String)
 	if err != nil {
@@ -324,7 +293,7 @@ func dnsDkimKey(publicKey crypto.PublicKey) (string, error) {
 	return base64.RawStdEncoding.EncodeToString(pubkeyBytes), nil
 }
 
-func dkimTxtRecordContent(privateKey crypto.PrivateKey) (string, error) {
+func DkimTxtRecordContent(privateKey crypto.PrivateKey) (string, error) {
 	pubKey, err := pubKey(privateKey)
 	if err != nil {
 		return "", err
@@ -336,6 +305,6 @@ func dkimTxtRecordContent(privateKey crypto.PrivateKey) (string, error) {
 	return fmt.Sprintf("v=DKIM1;p=%s", base64Key), nil
 }
 
-func dkimDomain(selector, domain string) string {
+func DkimDomain(selector, domain string) string {
 	return fmt.Sprintf("%s._domainkey.%s", selector, domain)
 }

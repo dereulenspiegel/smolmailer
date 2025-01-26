@@ -16,17 +16,13 @@ import (
 	"github.com/emersion/go-smtp"
 )
 
-type backendQueue interface {
-	QueueMessage(msg *QueuedMessage) error
-}
-
 type userService interface {
 	Authenticate(username, password string) error
 	IsValidSender(username, from string) bool
 }
 
 type Backend struct {
-	q       GenericWorkQueue[*QueuedMessage]
+	q       GenericWorkQueue[*ReceivedMessage]
 	cfg     *Config
 	logger  *slog.Logger
 	ctx     context.Context
@@ -60,7 +56,7 @@ func (b *Backend) isValidRemoteAddr(remoteAddr net.Addr) bool {
 	return false
 }
 
-func NewBackend(ctx context.Context, logger *slog.Logger, q GenericWorkQueue[*QueuedMessage], userSrv userService, cfg *Config) (*Backend, error) {
+func NewBackend(ctx context.Context, logger *slog.Logger, q GenericWorkQueue[*ReceivedMessage], userSrv userService, cfg *Config) (*Backend, error) {
 	b := &Backend{
 		q:       q,
 		cfg:     cfg,
@@ -130,14 +126,14 @@ type Session struct {
 	plainAuthServer sasl.Server
 	loginAuthServer sasl.Server
 
-	q       GenericWorkQueue[*QueuedMessage]
+	q       GenericWorkQueue[*ReceivedMessage]
 	userSrv userService
 	logger  *slog.Logger
 	ctx     context.Context
 	logVals []slog.Attr
 }
 
-func NewSession(ctx context.Context, logger *slog.Logger, q GenericWorkQueue[*QueuedMessage], userSrv userService) *Session {
+func NewSession(ctx context.Context, logger *slog.Logger, q GenericWorkQueue[*ReceivedMessage], userSrv userService) *Session {
 	logger.Info("Starting new session")
 	s := &Session{
 		Msg:     &ReceivedMessage{},
@@ -225,12 +221,9 @@ func (s *Session) Data(r io.Reader) (err error) {
 		logger.Error("failed to read message body", "err", err)
 		return fmt.Errorf("failed to read message body: %w", err)
 	}
-
-	for _, msg := range s.Msg.QueuedMessages() {
-		if err := s.q.Queue(s.ctx, msg, QueueWithAttempts(3)); err != nil {
-			logger.Error("failed to queue message", "err", err)
-			return fmt.Errorf("failed to queue message: %w", err)
-		}
+	if err := s.q.Queue(s.ctx, s.Msg, QueueWithAttempts(3)); err != nil {
+		logger.Error("failed to queue received message", "err", err)
+		return fmt.Errorf("failed to queue received msg: %w", err)
 	}
 
 	return nil

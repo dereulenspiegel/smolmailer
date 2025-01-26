@@ -28,8 +28,8 @@ func (s *serverDebugLogger) Println(v ...interface{}) {
 
 func TestSendMail(t *testing.T) {
 	ctx := context.Background()
-	q := NewGenericWorkQueueMock[*QueuedMessage](t)
-	q.On("Queue", mock.AnythingOfType("context.backgroundCtx"), mock.IsType(&QueuedMessage{}), mock.AnythingOfType("smolmailer.queueOption")).Return(nil)
+	q := NewGenericWorkQueueMock[*ReceivedMessage](t)
+	q.On("Queue", mock.AnythingOfType("context.backgroundCtx"), mock.IsType(&ReceivedMessage{}), mock.AnythingOfType("smolmailer.queueOption")).Return(nil)
 
 	usrSrv := newUserServiceMock(t)
 	usrSrv.On("Authenticate", "test", "example").Return(nil)

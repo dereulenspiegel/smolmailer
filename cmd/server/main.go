@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto"
+	"database/sql"
 	"errors"
 	"log/slog"
 	"os"
@@ -12,8 +14,11 @@ import (
 
 	"github.com/dereulenspiegel/smolmailer"
 	"github.com/dereulenspiegel/smolmailer/acme"
+	"github.com/emersion/go-msgauth/dkim"
 	"github.com/emersion/go-smtp"
 	"github.com/spf13/viper"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 var (
@@ -57,9 +62,46 @@ func main() {
 			panic(err)
 		}
 
-		q, err := smolmailer.NewSQLiteWorkQueue[*smolmailer.QueuedMessage](filepath.Join(cfg.QueuePath, "queue.db"), "send.queue", 10, 300)
+		liteDb, err := sql.Open("sqlite3", filepath.Join(cfg.QueuePath))
 		if err != nil {
-			logger.Error("failed to create queue", "err", err)
+			logger.Error("failed to open sqlite queue db", "err", err)
+			panic(err)
+		}
+
+		receiveQueue, err := smolmailer.NewSQLiteWorkQueueOnDb[*smolmailer.ReceivedMessage](liteDb, "receive.queue", 10, 300)
+		if err != nil {
+			logger.Error("failed to create receive queue", "err", err)
+			panic(err)
+		}
+		sendQueue, err := smolmailer.NewSQLiteWorkQueueOnDb[*smolmailer.QueuedMessage](liteDb, "send.queue", 10, 300)
+		if err != nil {
+			logger.Error("failed to create receive queue", "err", err)
+			panic(err)
+		}
+
+		dkimKey, err := smolmailer.ParseDkimKey(cfg.Dkim.PrivateKey)
+		if err != nil {
+			logger.Error("failed to parse DKIM key", "err", err)
+			panic(err)
+		}
+		dkimRecordValue, err := smolmailer.DkimTxtRecordContent(dkimKey)
+		if err == nil {
+			dkimDomain := smolmailer.DkimDomain(cfg.Dkim.Selector, cfg.Domain)
+			logger.Info("Please add the following record to your DNS zone", "domain", dkimDomain, "recordValue", dkimRecordValue)
+		}
+		_, err = smolmailer.NewProcessorHandler(ctx, receiveQueue,
+			smolmailer.WithReceiveProcessors(smolmailer.DkimProcessor(&dkim.SignOptions{
+				Domain:   cfg.Domain,
+				Selector: cfg.Dkim.Selector,
+				Signer:   dkimKey,
+				Hash:     crypto.SHA256,
+				HeaderKeys: []string{ // Recommended headers according to https://www.rfc-editor.org/rfc/rfc6376.html#section-5.4.1
+					"From", "Reply-to", "Subject", "Date", "To", "Cc", "Resent-Date", "Resent-From", "Resent-To", "Resent-Cc", "In-Reply-To", "References",
+					"List-Id", "List-Help", "List-Unsubscribe", "List-Subscribe", "List-Post", "List-Owner", "List-Archive",
+				},
+			})))
+		if err != nil {
+			logger.Error("failed to create message processing", "err", err)
 			panic(err)
 		}
 
@@ -70,7 +112,7 @@ func main() {
 		}
 		backendCtx, backendCancel := context.WithCancel(ctx)
 		defer backendCancel()
-		b, err := smolmailer.NewBackend(backendCtx, logger.With("component", "backend"), q, userSrv, cfg)
+		b, err := smolmailer.NewBackend(backendCtx, logger.With("component", "backend"), receiveQueue, userSrv, cfg)
 		if err != nil {
 			logger.Error("failed to create backend", "err", err)
 			panic(err)
@@ -100,7 +142,7 @@ func main() {
 			s.TLSConfig = acme.NewTlsConfig(acmeTls)
 		}
 
-		sender, err := smolmailer.NewSender(ctxSender, logger.With("component", "sender"), cfg, q)
+		sender, err := smolmailer.NewSender(ctxSender, logger.With("component", "sender"), cfg, sendQueue)
 		if err != nil {
 			logger.Error("failed to create sender", "err", err)
 			panic(err)
