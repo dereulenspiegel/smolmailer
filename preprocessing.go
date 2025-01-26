@@ -7,6 +7,7 @@ import (
 	"log/slog"
 
 	"github.com/emersion/go-msgauth/dkim"
+	"github.com/emersion/go-smtp"
 )
 
 type ReceiveProcessor func(*ReceivedMessage) (*ReceivedMessage, error)
@@ -35,13 +36,6 @@ func WithPreSendProcessors(preSendProcessors ...PreSendProcessor) ProcessingOpt 
 	}
 }
 
-func SendProcessor(ctx context.Context, sendingQueue GenericWorkQueue[*QueuedMessage], options ...queueOption) PreSendProcessor {
-	return func(msg *QueuedMessage) (*QueuedMessage, error) {
-		err := sendingQueue.Queue(ctx, msg, options...)
-		return msg, err
-	}
-}
-
 func NewProcessorHandler(ctx context.Context,
 	logger *slog.Logger,
 	receivingQueue GenericWorkQueue[*ReceivedMessage], opts ...ProcessingOpt) (*PreprocessorHandler, error) {
@@ -66,6 +60,9 @@ func (p *PreprocessorHandler) runConsumeReceivingQueue(ctx context.Context) {
 }
 
 func (p *PreprocessorHandler) consumeReceivingQueue(ctx context.Context, receivedMsg *ReceivedMessage) (err error) {
+	if receivedMsg.MailOpts == nil {
+		receivedMsg.MailOpts = &smtp.MailOptions{}
+	}
 	logger := p.logger.With(slog.String("from", receivedMsg.From), slog.String("envelopeId", receivedMsg.MailOpts.EnvelopeID))
 	logger.Info("processing received message")
 	for _, receiveProcessor := range p.receiveProcessors {
@@ -99,6 +96,13 @@ func (p *PreprocessorHandler) consumeReceivingQueue(ctx context.Context, receive
 func (p *PreprocessorHandler) processReceivedMessage(receivedMsg *ReceivedMessage) (queuedMsgs []*QueuedMessage, err error) {
 	queuedMsgs = receivedMsg.QueuedMessages()
 	return queuedMsgs, nil
+}
+
+func SendProcessor(ctx context.Context, sendingQueue GenericWorkQueue[*QueuedMessage], options ...queueOption) PreSendProcessor {
+	return func(msg *QueuedMessage) (*QueuedMessage, error) {
+		err := sendingQueue.Queue(ctx, msg, options...)
+		return msg, err
+	}
 }
 
 func DkimProcessor(dkimOptions *dkim.SignOptions) ReceiveProcessor {
