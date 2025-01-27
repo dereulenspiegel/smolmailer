@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net"
 	"net/netip"
+	"strings"
 	"time"
 
 	"github.com/emersion/go-sasl"
@@ -91,6 +92,22 @@ type ReceivedMessage struct {
 	MailOpts *smtp.MailOptions
 }
 
+func (m *ReceivedMessage) LogValue() slog.Value {
+	envelopeID := "na"
+	if m.MailOpts != nil {
+		envelopeID = m.MailOpts.EnvelopeID
+	}
+	recipients := make([]string, len(m.To))
+	for i, to := range m.To {
+		recipients[i] = to.String()
+	}
+	return slog.GroupValue(
+		slog.String("from", m.From),
+		slog.String("envelopeId", envelopeID),
+		slog.String("recipients", strings.Join(recipients, ",")),
+	)
+}
+
 func (r *ReceivedMessage) QueuedMessages() (msgs []*QueuedMessage) {
 	receivedAt := time.Now()
 	for _, to := range r.To {
@@ -119,6 +136,18 @@ type QueuedMessage struct {
 	LastDeliveryAttempt time.Time
 	ErrorCount          int
 	LastErr             error
+}
+
+func (m *QueuedMessage) LogValue() slog.Value {
+	envelopeID := "na"
+	if m.MailOpts != nil {
+		envelopeID = m.MailOpts.EnvelopeID
+	}
+	return slog.GroupValue(
+		slog.String("from", m.From),
+		slog.String("to", m.To),
+		slog.String("envelopeId", envelopeID),
+	)
 }
 
 type Session struct {
@@ -269,6 +298,7 @@ func (s *Session) Logout() error {
 
 func (s *Session) logWithGroup(stage string, additionalGroupVals ...slog.Attr) *slog.Logger {
 	s.logVals = append(s.logVals, additionalGroupVals...)
+	s.logVals = append(s.logVals, slog.Any("msg", s.Msg))
 	return s.logger.With("session", s, slog.String("stage", stage))
 }
 

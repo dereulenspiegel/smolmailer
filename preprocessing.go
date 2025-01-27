@@ -44,6 +44,7 @@ func NewProcessorHandler(ctx context.Context,
 		receivingQueue:    receivingQueue,
 		receiveProcessors: make([]ReceiveProcessor, 0),
 		preprocessors:     make([]PreSendProcessor, 0),
+		logger:            logger,
 	}
 
 	for _, opt := range opts {
@@ -63,7 +64,7 @@ func (p *PreprocessorHandler) consumeReceivingQueue(ctx context.Context, receive
 	if receivedMsg.MailOpts == nil {
 		receivedMsg.MailOpts = &smtp.MailOptions{}
 	}
-	logger := p.logger.With(slog.String("from", receivedMsg.From), slog.String("envelopeId", receivedMsg.MailOpts.EnvelopeID))
+	logger := p.logger.With(slog.Any("receivedMsg", receivedMsg))
 	logger.Info("processing received message")
 	for _, receiveProcessor := range p.receiveProcessors {
 		receivedMsg, err = receiveProcessor(receivedMsg)
