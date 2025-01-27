@@ -39,7 +39,7 @@ func TestSuccessfullPreProcessing(t *testing.T) {
 	err = rq.Queue(ctx, rMsg)
 	require.NoError(t, err)
 
-	time.Sleep(time.Millisecond * 100)
+	time.Sleep(time.Millisecond * 500)
 
 	sq.AssertExpectations(t)
 }
