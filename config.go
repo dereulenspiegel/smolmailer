@@ -57,7 +57,7 @@ func ConfigDefaults() {
 	viper.AddConfigPath("/config")
 
 	viper.SetDefault("domain", "")
-	viper.SetDefault("listenAddr", "[:]:2525")
+	viper.SetDefault("listenAddr", "[::]:2525")
 	viper.SetDefault("listenTls", false)
 	viper.SetDefault("logLevel", must(slog.LevelInfo.MarshalText()))
 	viper.SetDefault("sendAddr", "")
