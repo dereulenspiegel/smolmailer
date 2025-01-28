@@ -20,8 +20,6 @@ import (
 	"github.com/emersion/go-smtp"
 )
 
-const retryQueueName = "retry-queue"
-
 const maxRetries = 10
 
 type Sender struct {

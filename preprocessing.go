@@ -57,7 +57,9 @@ func NewProcessorHandler(ctx context.Context,
 }
 
 func (p *PreprocessorHandler) runConsumeReceivingQueue(ctx context.Context) {
-	p.receivingQueue.Consume(ctx, p.consumeReceivingQueue)
+	if err := p.receivingQueue.Consume(ctx, p.consumeReceivingQueue); err != nil {
+		p.logger.Error("failed to consume from receiving queue", "err", err)
+	}
 }
 
 func (p *PreprocessorHandler) consumeReceivingQueue(ctx context.Context, receivedMsg *ReceivedMessage) (err error) {

@@ -45,7 +45,8 @@ func TestRegisterAcmeAccountAndObtainCertficate(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, a)
 
-	dns01.AddRecursiveNameservers([]string{localDns})(nil)
+	err = dns01.AddRecursiveNameservers([]string{localDns})(nil)
+	require.NoError(t, err)
 
 	err = a.ObtainCertificate("example.com")
 	require.NoError(t, err)

@@ -26,10 +26,6 @@ func (q *QueueError) Unwrap() error {
 	return q.cause
 }
 
-func newQueueError(message string) *QueueError {
-	return &QueueError{message: message}
-}
-
 func newQueueErrorWithCause(message string, cause error) *QueueError {
 	return &QueueError{
 		message: message,

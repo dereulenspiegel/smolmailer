@@ -24,10 +24,13 @@ func TestWorkerQueue(t *testing.T) {
 	resChan := make(chan *TestMsgType, 1)
 	timeOut := time.NewTimer(time.Second * 2)
 
-	go wq.Consume(context.Background(), func(ctx context.Context, msg *TestMsgType) error {
-		resChan <- msg
-		return nil
-	})
+	go func() {
+		err := wq.Consume(context.Background(), func(ctx context.Context, msg *TestMsgType) error {
+			resChan <- msg
+			return nil
+		})
+		require.NoError(t, err)
+	}()
 	require.NoError(t, err)
 	err = wq.Queue(context.Background(), &TestMsgType{
 		TestField: "foo",

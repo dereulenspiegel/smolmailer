@@ -65,7 +65,8 @@ func TestSendMail(t *testing.T) {
 	require.NoError(t, client.Rcpt("to@remote.example.com", &smtp.RcptOptions{}))
 	writer, err := client.Data()
 	require.NoError(t, err)
-	writer.Write([]byte("mail body"))
+	_, err = writer.Write([]byte("mail body"))
+	require.NoError(t, err)
 	require.NoError(t, writer.Close())
 	require.NoError(t, client.Quit())
 }

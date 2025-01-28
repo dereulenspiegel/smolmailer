@@ -185,15 +185,23 @@ func (f *fileBackedCache) store() (err error) {
 			// TODO log error
 			return false
 		}
-		pem.Encode(buf, &pem.Block{
+		err = pem.Encode(buf, &pem.Block{
 			Type:  pemTypeEcPrivateKey,
 			Bytes: privKeyBytes,
 		})
+		if err != nil {
+			err = fmt.Errorf("failed to pem encode ec private key: %w", err)
+			return false
+		}
 		for _, certBytes := range tlsCert.Certificate {
-			pem.Encode(buf, &pem.Block{
+			err = pem.Encode(buf, &pem.Block{
 				Type:  "CERTIFICATE",
 				Bytes: certBytes,
 			})
+			if err != nil {
+				err = fmt.Errorf("failed to pem encode certificate: %w", err)
+				return false
+			}
 		}
 		domain := key.(string)
 		pemData := base64.RawStdEncoding.EncodeToString(buf.Bytes())
@@ -234,7 +242,9 @@ func (f *fileBackedCache) Load() error {
 		var privateKey crypto.PrivateKey
 		for block, rest := pem.Decode(pemBytes); block != nil; block, rest = pem.Decode(rest) {
 			if block.Type == "CERTIFICATE" {
-				pem.Encode(pemBuf, block)
+				if err := pem.Encode(pemBuf, block); err != nil {
+					return err
+				}
 			} else {
 				privateKey, err = pemDecodePrivateKey(block)
 				if err != nil {

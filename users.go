@@ -43,7 +43,10 @@ func NewUserService(logger *slog.Logger, userFilePath string) (*UserService, err
 		passwdDecoder: passwdDecoder,
 		logger:        logger,
 	}
-	us.unmarshalConfig(userFileBytes)
+	err = us.unmarshalConfig(userFileBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
+	}
 
 	return us, nil
 }

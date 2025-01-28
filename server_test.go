@@ -85,7 +85,8 @@ MC4CAQAwBQYDK2VwBCIEIPP6YdTb47JgAPxNhxtZTK1LAGs61eJYNa1S0S7G9Cv1
 	}
 
 	go func() {
-		server.Serve()
+		err := server.Serve()
+		require.NoError(t, err)
 	}()
 
 	msg := mail.NewMsg()
