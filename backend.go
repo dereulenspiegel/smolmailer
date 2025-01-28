@@ -213,16 +213,15 @@ func NewSession(ctx context.Context, logger *slog.Logger, q GenericWorkQueue[*Re
 func (s *Session) Mail(from string, opts *smtp.MailOptions) error {
 	logger := s.logWithGroup("Mail", slog.String("from", from), slog.String("envelopeId", opts.EnvelopeID), slog.Bool("requireTLS", opts.RequireTLS))
 	logger.Info("Mail from")
-	s.Msg.From = from
 	if s.authenticatedSubject == "" {
 		logger.Warn("declining unauthenticated session")
 		return fmt.Errorf("not authenticated")
 	}
-
-	if !s.userSrv.IsValidSender(s.authenticatedSubject, s.Msg.From) {
+	if !s.userSrv.IsValidSender(s.authenticatedSubject, from) {
 		logger.Warn("not a valid sender")
-		return fmt.Errorf("user %s is now allowed to send emails as %s", s.authenticatedSubject, s.Msg.From)
+		return fmt.Errorf("user %s is not allowed to send emails as %s", s.authenticatedSubject, s.Msg.From)
 	}
+	s.Msg.From = from
 	if opts != nil {
 		s.ExpectedBodySize = opts.Size
 	}
