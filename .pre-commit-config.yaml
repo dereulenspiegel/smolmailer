@@ -9,3 +9,7 @@ repos:
     rev: v1.2.2
     hooks:
       - id: zizmor
+  - repo: https://github.com/golangci/golangci-lint
+    rev: v1.63.4
+    hooks:
+      - id: golangci-lint-full
