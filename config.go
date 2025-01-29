@@ -48,7 +48,7 @@ func (c *Config) IsValid() error {
 		return fmt.Errorf("When listening to TLS you need to specify the TLS Domain and a valid acme config")
 	}
 
-	if err := c.Acme.IsValid(); err != nil {
+	if err := c.Acme.IsValid(); c.ListenTls && err != nil {
 		return err
 	}
 
