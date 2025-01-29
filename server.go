@@ -70,7 +70,11 @@ func NewServer(ctx context.Context, logger *slog.Logger, cfg *Config) (*Server, 
 	dkimRecordValue, err := DkimTxtRecordContent(dkimKey)
 	if err == nil {
 		dkimDomain := DkimDomain(cfg.Dkim.Selector, cfg.MailDomain)
-		logger.Info("Please add the following record to your DNS zone", "domain", dkimDomain, "recordValue", dkimRecordValue)
+		if err := VerifyDKIMRecords(dkimDomain, dkimRecordValue); err == ErrNoDKIMRecord {
+			logger.Warn("Please add the following record to your DNS zone", "domain", dkimDomain, "recordValue", dkimRecordValue)
+		} else if err != nil {
+			logger.Error("failed to resolve and verify DKIM record", "err", err)
+		}
 	}
 
 	s.processorHandler, err = NewProcessorHandler(ctx, logger.With("component", "messageProcessing"), s.receiveQueue,
