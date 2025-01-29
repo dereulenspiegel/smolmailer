@@ -27,7 +27,8 @@ func (d *DkimOpts) IsValid() error {
 }
 
 type Config struct {
-	Domain          string       `mapstructure:"domain"`
+	MailDomain      string       `mapstructure:"mailDomain"`
+	TlsDomain       string       `mapstructure:"tlsDomain"`
 	ListenAddr      string       `mapstructure:"listenAddr"`
 	ListenTls       bool         `mapstructure:"listenTls"`
 	LogLevel        string       `mapstructure:"logLevel"`
@@ -40,8 +41,15 @@ type Config struct {
 }
 
 func (c *Config) IsValid() error {
-	if c.Domain == "" {
+	if c.MailDomain == "" {
 		return fmt.Errorf("'Domain' not set but required")
+	}
+	if c.ListenTls && (c.TlsDomain == "" || c.Acme == nil) {
+		return fmt.Errorf("When listening to TLS you need to specify the TLS Domain and a valid acme config")
+	}
+
+	if err := c.Acme.IsValid(); err != nil {
+		return err
 	}
 
 	if err := c.Dkim.IsValid(); err != nil {
@@ -56,7 +64,7 @@ func ConfigDefaults() {
 	viper.AddConfigPath("./")
 	viper.AddConfigPath("/config")
 
-	viper.SetDefault("domain", "")
+	viper.SetDefault("mailDomain", "")
 	viper.SetDefault("listenAddr", "[::]:2525")
 	viper.SetDefault("listenTls", false)
 	viper.SetDefault("logLevel", must(slog.LevelInfo.MarshalText()))

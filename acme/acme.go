@@ -47,6 +47,16 @@ type Config struct {
 	httpClient                  *http.Client // Set custom http client for testing
 }
 
+func (c *Config) IsValid() error {
+	if c.Email == "" {
+		return fmt.Errorf("you need to specify an acme account email address")
+	}
+	if c.DNS01ProviderName == "" {
+		return fmt.Errorf("you need to specify a DNS-01 provider name, see https://go-acme.github.io/lego/dns/index.html")
+	}
+	return nil
+}
+
 type AcmeTls struct {
 	ModifiableCertCache
 

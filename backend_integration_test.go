@@ -37,7 +37,7 @@ func TestSendMail(t *testing.T) {
 
 	cfg := &Config{
 		ListenAddr: "[::1]:4465", // TODO get random port
-		Domain:     "example.com",
+		MailDomain: "example.com",
 	}
 	b, err := NewBackend(ctx, slog.Default(), q, usrSrv, cfg)
 	require.NoError(t, err)
@@ -46,7 +46,7 @@ func TestSendMail(t *testing.T) {
 	require.NoError(t, err)
 
 	s := smtp.NewServer(b)
-	s.Domain = cfg.Domain
+	s.Domain = cfg.MailDomain
 	s.AllowInsecureAuth = true // Only for testing
 	s.ErrorLog = &serverDebugLogger{}
 	s.Debug = os.Stdout

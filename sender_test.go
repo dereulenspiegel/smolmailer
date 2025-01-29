@@ -33,8 +33,8 @@ func TestDeliverMail(t *testing.T) {
 	require.NoError(t, err)
 
 	sender, err := NewSender(ctx, slog.With("component", "sender"), &Config{
-		Domain:    "example.com",
-		QueuePath: qDir,
+		MailDomain: "example.com",
+		QueuePath:  qDir,
 		Dkim: &DkimOpts{
 			Selector: "smolmailer",
 			PrivateKey: base64.StdEncoding.EncodeToString([]byte(`-----BEGIN PRIVATE KEY-----

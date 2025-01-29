@@ -54,7 +54,7 @@ MC4CAQAwBQYDK2VwBCIEIPP6YdTb47JgAPxNhxtZTK1LAGs61eJYNa1S0S7G9Cv1
 
 	logger := slog.Default()
 	cfg := &Config{
-		Domain:     "auth.example.com",
+		MailDomain: "auth.example.com",
 		ListenAddr: ":2525",
 		ListenTls:  false,
 		LogLevel:   "DEBUG",

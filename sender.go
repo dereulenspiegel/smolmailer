@@ -177,7 +177,7 @@ func (s *Sender) dialHost(host string) (c *smtp.Client, err error) {
 }
 
 func (s *Sender) smtpDialog(c *smtp.Client, msg *QueuedMessage) error {
-	if err := c.Hello(s.cfg.Domain); err != nil {
+	if err := c.Hello(s.cfg.MailDomain); err != nil {
 		c.Close()
 		return fmt.Errorf("hello cmd failed: %w", err)
 	}

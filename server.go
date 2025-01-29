@@ -69,13 +69,13 @@ func NewServer(ctx context.Context, logger *slog.Logger, cfg *Config) (*Server, 
 	}
 	dkimRecordValue, err := DkimTxtRecordContent(dkimKey)
 	if err == nil {
-		dkimDomain := DkimDomain(cfg.Dkim.Selector, cfg.Domain)
+		dkimDomain := DkimDomain(cfg.Dkim.Selector, cfg.MailDomain)
 		logger.Info("Please add the following record to your DNS zone", "domain", dkimDomain, "recordValue", dkimRecordValue)
 	}
 
 	s.processorHandler, err = NewProcessorHandler(ctx, logger.With("component", "messageProcessing"), s.receiveQueue,
 		WithReceiveProcessors(DkimProcessor(&dkim.SignOptions{
-			Domain:   cfg.Domain,
+			Domain:   cfg.MailDomain,
 			Selector: cfg.Dkim.Selector,
 			Signer:   dkimKey,
 			Hash:     crypto.SHA256,
@@ -104,7 +104,7 @@ func NewServer(ctx context.Context, logger *slog.Logger, cfg *Config) (*Server, 
 	}
 
 	smtpServer := smtp.NewServer(backend)
-	smtpServer.Domain = cfg.Domain
+	smtpServer.Domain = cfg.MailDomain
 	smtpServer.Addr = cfg.ListenAddr
 	smtpServer.WriteTimeout = 10 * time.Second
 	smtpServer.ReadTimeout = 10 * time.Second
@@ -120,8 +120,8 @@ func NewServer(ctx context.Context, logger *slog.Logger, cfg *Config) (*Server, 
 			logger.Error("failed to create ACME setup", "err", err)
 			panic(err)
 		}
-		if err := acmeTls.ObtainCertificate(cfg.Domain); err != nil {
-			logger.Error("failed to obtain certificate for domain", "domain", cfg.Domain, "err", err)
+		if err := acmeTls.ObtainCertificate(cfg.TlsDomain); err != nil {
+			logger.Error("failed to obtain certificate for domain", "domain", cfg.TlsDomain, "err", err)
 			panic(err)
 		}
 		smtpServer.TLSConfig = acme.NewTlsConfig(acmeTls)
