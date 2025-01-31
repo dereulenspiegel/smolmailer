@@ -76,6 +76,9 @@ func NewServer(ctx context.Context, logger *slog.Logger, cfg *Config) (*Server, 
 			logger.Error("failed to resolve and verify DKIM record", "err", err)
 		}
 	}
+	if err := VerifySPFRecord(cfg.MailDomain, cfg.TlsDomain, cfg.SendAddr); err != nil {
+		logger.Warn("spf records are not properly setup", "err", err)
+	}
 
 	s.processorHandler, err = NewProcessorHandler(ctx, logger.With("component", "messageProcessing"), s.receiveQueue,
 		WithReceiveProcessors(DkimProcessor(&dkim.SignOptions{

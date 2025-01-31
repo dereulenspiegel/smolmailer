@@ -62,6 +62,7 @@ require (
 	github.com/alingse/nilnesserr v0.1.1 // indirect
 	github.com/alitto/pond v1.8.3 // indirect
 	github.com/aliyun/alibaba-cloud-sdk-go v1.63.83 // indirect
+	github.com/asggo/spf v0.0.0-20200529014219-3e270ddb6136 // indirect
 	github.com/ashanbrown/forbidigo v1.6.0 // indirect
 	github.com/ashanbrown/makezero v1.2.0 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.33.0 // indirect

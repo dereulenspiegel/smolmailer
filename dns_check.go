@@ -6,10 +6,16 @@ import (
 	"net"
 	"strings"
 
+	"github.com/asggo/spf"
 	"github.com/miekg/dns"
 )
 
-var ErrNoDKIMRecord = errors.New("no dkim record found")
+var (
+	ErrNoDKIMRecord     = errors.New("no dkim record found")
+	ErrNoSPFRecord      = errors.New("no spf record found")
+	ErrInvalidSPFRecord = errors.New("invalid SPF record")
+	ErrRecordNotFound   = errors.New("record not found")
+)
 
 func VerifyDKIMRecords(domain, value string) error {
 	config, _ := dns.ClientConfigFromFile("/etc/resolv.conf")
@@ -29,7 +35,15 @@ func VerifyDKIMRecords(domain, value string) error {
 		return ErrNoDKIMRecord
 	}
 
-	for _, a := range r.Answer {
+	answer, err := resolve(domain, dns.TypeTXT)
+	if err != nil {
+		if err == ErrRecordNotFound {
+			return ErrNoDKIMRecord
+		}
+		return err
+	}
+
+	for _, a := range answer {
 		if rrTxt, ok := a.(*dns.TXT); ok {
 			for _, txtVal := range rrTxt.Txt {
 				if txtVal == value {
@@ -39,4 +53,51 @@ func VerifyDKIMRecords(domain, value string) error {
 		}
 	}
 	return ErrNoDKIMRecord
+}
+
+func VerifySPFRecord(mailDomain, tlsdomain, sendAddr string) error {
+	answer, err := resolve(mailDomain, dns.TypeTXT)
+	if err != nil {
+		return err
+	}
+
+	for _, a := range answer {
+		if rrTxt, ok := a.(*dns.TXT); ok {
+			for _, txtVal := range rrTxt.Txt {
+				if strings.HasPrefix(txtVal, "v=") {
+					spfValue, err := spf.NewSPF(mailDomain, txtVal, 3)
+					if err != nil {
+						continue
+					}
+					spfResult := spfValue.Test(sendAddr)
+					switch spfResult {
+					case spf.Pass, spf.Neutral:
+						return nil
+					default:
+						return ErrInvalidSPFRecord
+					}
+				}
+			}
+		}
+	}
+	return ErrNoSPFRecord
+}
+
+func resolve(rrDomain string, rrType uint16) ([]dns.RR, error) {
+	config, _ := dns.ClientConfigFromFile("/etc/resolv.conf")
+	c := new(dns.Client)
+	m := new(dns.Msg)
+	if !strings.HasSuffix(rrDomain, ".") {
+		rrDomain = rrDomain + "."
+	}
+	m.SetQuestion(rrDomain, rrType)
+
+	r, _, err := c.Exchange(m, net.JoinHostPort(config.Servers[0], config.Port))
+	if err != nil {
+		return nil, fmt.Errorf("failed to contact DNS server: %w", err)
+	}
+	if r.Rcode != dns.RcodeSuccess {
+		return nil, ErrRecordNotFound
+	}
+	return r.Answer, nil
 }
