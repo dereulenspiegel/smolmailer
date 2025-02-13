@@ -70,7 +70,7 @@ func NewServer(ctx context.Context, logger *slog.Logger, cfg *Config) (*Server, 
 	dkimRecordValue, err := DkimTxtRecordContent(dkimKey)
 	if err == nil {
 		dkimDomain := DkimDomain(cfg.Dkim.Selector, cfg.MailDomain)
-		if err := VerifyDKIMRecords(dkimDomain, dkimRecordValue); err == ErrNoDKIMRecord {
+		if err := VerifyDKIMRecords(dkimDomain, dkimRecordValue); errors.Is(err, ErrNoDKIMRecord) {
 			logger.Warn("Please add the following record to your DNS zone", "domain", dkimDomain, "recordValue", dkimRecordValue)
 		} else if err != nil {
 			logger.Error("failed to resolve and verify DKIM record", "err", err)

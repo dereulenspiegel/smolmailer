@@ -37,7 +37,7 @@ func VerifyDKIMRecords(domain, value string) error {
 
 	answer, err := resolve(domain, dns.TypeTXT)
 	if err != nil {
-		if err == ErrRecordNotFound {
+		if errors.Is(err, ErrRecordNotFound) {
 			return ErrNoDKIMRecord
 		}
 		return err
@@ -55,6 +55,8 @@ func VerifyDKIMRecords(domain, value string) error {
 	return ErrNoDKIMRecord
 }
 
+const defaultDNSQueryCount = 3
+
 func VerifySPFRecord(mailDomain, tlsdomain, sendAddr string) error {
 	answer, err := resolve(mailDomain, dns.TypeTXT)
 	if err != nil {
@@ -65,7 +67,7 @@ func VerifySPFRecord(mailDomain, tlsdomain, sendAddr string) error {
 		if rrTxt, ok := a.(*dns.TXT); ok {
 			for _, txtVal := range rrTxt.Txt {
 				if strings.HasPrefix(txtVal, "v=") {
-					spfValue, err := spf.NewSPF(mailDomain, txtVal, 3)
+					spfValue, err := spf.NewSPF(mailDomain, txtVal, defaultDNSQueryCount)
 					if err != nil {
 						continue
 					}
@@ -73,8 +75,10 @@ func VerifySPFRecord(mailDomain, tlsdomain, sendAddr string) error {
 					switch spfResult {
 					case spf.Pass, spf.Neutral:
 						return nil
-					default:
+					case spf.Fail, spf.SoftFail, spf.None, spf.TempError, spf.PermError:
 						return ErrInvalidSPFRecord
+					default:
+						return errors.New("Additional spf check result, this should not be reachable")
 					}
 				}
 			}

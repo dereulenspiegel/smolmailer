@@ -48,6 +48,9 @@ type Config struct {
 }
 
 func (c *Config) IsValid() error {
+	if c == nil {
+		return fmt.Errorf("ACME config is nil")
+	}
 	if c.Email == "" {
 		return fmt.Errorf("you need to specify an acme account email address")
 	}
@@ -138,7 +141,7 @@ func NewAcme(ctx context.Context, logger *slog.Logger, cfg *Config) (*AcmeTls, e
 	if dns01Provider == nil {
 		dns01Provider, err = dns.NewDNSChallengeProviderByName(cfg.DNS01ProviderName)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create DNS-01 challenge provider %s: %s", cfg.dns01Provider, err)
+			return nil, fmt.Errorf("failed to create DNS-01 challenge provider %s: %w", cfg.dns01Provider, err)
 		}
 	}
 	if err := client.Challenge.SetDNS01Provider(dns01Provider, chlgOpts...); err != nil {
@@ -300,7 +303,7 @@ func (a *AcmeTls) writeUser(user *acmeUser) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal userdata: %w", err)
 	}
-	err = os.WriteFile(userFile, userData, 0660)
+	err = os.WriteFile(userFile, userData, 0600)
 	if err != nil {
 		return fmt.Errorf("failed to write user data to %s: %w", userFile, err)
 	}

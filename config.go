@@ -44,12 +44,13 @@ func (c *Config) IsValid() error {
 	if c.MailDomain == "" {
 		return fmt.Errorf("'Domain' not set but required")
 	}
-	if c.ListenTls && (c.TlsDomain == "" || c.Acme == nil) {
-		return fmt.Errorf("When listening to TLS you need to specify the TLS Domain and a valid acme config")
-	}
-
-	if err := c.Acme.IsValid(); c.ListenTls && err != nil {
-		return err
+	if c.ListenTls {
+		if c.TlsDomain == "" {
+			return fmt.Errorf("please specifc a tls domain if you want to listen on TLS")
+		}
+		if err := c.Acme.IsValid(); err != nil {
+			return fmt.Errorf("please specify a valid ACME config: %w", err)
+		}
 	}
 
 	if err := c.Dkim.IsValid(); err != nil {
@@ -57,6 +58,8 @@ func (c *Config) IsValid() error {
 	}
 	return nil
 }
+
+const defaultAcmeRenewalInterval = time.Hour * 24 * 30
 
 func ConfigDefaults() {
 	viper.SetConfigName("config")
@@ -75,7 +78,7 @@ func ConfigDefaults() {
 	viper.SetDefault("dkim.privateKey", "")
 	viper.SetDefault("acme.automaticRenew", true)
 	viper.SetDefault("acme.dir", "/data/acme")
-	viper.SetDefault("acme.renewalInterval", time.Hour*24*30)
+	viper.SetDefault("acme.renewalInterval", defaultAcmeRenewalInterval)
 	viper.SetDefault("acme.email", "")
 	viper.SetDefault("acme.caUrl", "https://acme-v02.api.letsencrypt.org/directory")
 	viper.SetDefault("acme.dns01ProviderName", "")

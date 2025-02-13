@@ -237,8 +237,10 @@ func (s *Session) Rcpt(to string, opts *smtp.RcptOptions) error {
 	return nil
 }
 
+const defaultRetryAttempts = 3
+
 func (s *Session) Data(r io.Reader) (err error) {
-	logger := s.logWithGroup("Data", slog.Uint64("expectedBodySize", uint64(s.ExpectedBodySize)))
+	logger := s.logWithGroup("Data", slog.Int64("expectedBodySize", s.ExpectedBodySize))
 	logger.Info("Receiving data")
 	lr := r
 	if s.ExpectedBodySize > 0 {
@@ -254,7 +256,7 @@ func (s *Session) Data(r io.Reader) (err error) {
 		logger.Error("failed to read message body", "err", err)
 		return fmt.Errorf("failed to read message body: %w", err)
 	}
-	if err := s.q.Queue(s.ctx, s.Msg, QueueWithAttempts(3)); err != nil {
+	if err := s.q.Queue(s.ctx, s.Msg, QueueWithAttempts(defaultRetryAttempts)); err != nil {
 		logger.Error("failed to queue received message", "err", err)
 		return fmt.Errorf("failed to queue received msg: %w", err)
 	}
@@ -296,7 +298,7 @@ func (s *Session) Logout() error {
 func (s *Session) logWithGroup(stage string, additionalGroupVals ...slog.Attr) *slog.Logger {
 	s.logVals = append(s.logVals, additionalGroupVals...)
 	s.logVals = append(s.logVals, slog.Any("msg", s.Msg))
-	return s.logger.With("session", s, slog.String("stage", stage))
+	return s.logger.With(slog.Any("session", s), slog.String("stage", stage))
 }
 
 func (s *Session) LogValue() slog.Value {

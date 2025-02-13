@@ -34,7 +34,7 @@ func TestServerIntegration(t *testing.T) {
 
 	headers, err := inbucketClient.ListMailbox("user@users.example.com")
 	require.NoError(t, err)
-	require.Len(t, headers, 0)
+	require.Empty(t, headers)
 
 	userYaml := []byte(`
 - username: authelia

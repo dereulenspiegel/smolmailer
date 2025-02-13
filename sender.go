@@ -83,6 +83,8 @@ func (s *Sender) run() {
 	}
 }
 
+const defaultRetryPeriod = time.Minute * 4
+
 func (s *Sender) trySend(ctx context.Context, msg *QueuedMessage) error {
 	if msg.MailOpts == nil {
 		// TODO generate envelope id if missing
@@ -100,7 +102,7 @@ func (s *Sender) trySend(ctx context.Context, msg *QueuedMessage) error {
 			logger.Error("giving up delivering mail", "errorCount", msg.ErrorCount, "err", err)
 		}
 		attempts := maxRetries - msg.ErrorCount
-		if err := s.q.Queue(s.ctx, msg, QueueWithAttempts(attempts), QueueAfter(time.Minute*5)); err != nil {
+		if err := s.q.Queue(s.ctx, msg, QueueWithAttempts(attempts), QueueAfter(defaultRetryPeriod)); err != nil {
 			logger.Error("failed to requeue failed message", "err", err)
 		}
 	}
@@ -157,7 +159,10 @@ func (s *Sender) dialHost(host string) (c *smtp.Client, err error) {
 	for _, port := range s.mxPorts {
 		logger := logger.With("port", port)
 		address := fmt.Sprintf("%s:%d", host, port)
-		tlsConfig := &tls.Config{ServerName: host}
+		tlsConfig := &tls.Config{
+			ServerName: host,
+			MinVersion: tls.VersionTLS12,
+		}
 
 		switch port {
 		case 25:

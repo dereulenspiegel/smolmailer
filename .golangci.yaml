@@ -1,0 +1,21 @@
+linters:
+  disable-all: false
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - bidichk
+    - bodyclose
+    #- contextcheck
+    - copyloopvar
+    #- errorlint
+    - exhaustive
+    - exptostd
+    - gocheckcompilerdirectives
+    #- gosec
+    #- mnd
+    - sloglint
+    #- testifylint
