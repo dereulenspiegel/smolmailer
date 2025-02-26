@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dereulenspiegel/smolmailer/internal/config"
 	"github.com/emersion/go-sasl"
 	"github.com/emersion/go-smtp"
 )
@@ -22,7 +23,7 @@ type userService interface {
 
 type Backend struct {
 	q       GenericWorkQueue[*ReceivedMessage]
-	cfg     *Config
+	cfg     *config.Config
 	logger  *slog.Logger
 	ctx     context.Context
 	userSrv userService
@@ -55,7 +56,7 @@ func (b *Backend) isValidRemoteAddr(remoteAddr net.Addr) bool {
 	return false
 }
 
-func NewBackend(ctx context.Context, logger *slog.Logger, q GenericWorkQueue[*ReceivedMessage], userSrv userService, cfg *Config) (*Backend, error) {
+func NewBackend(ctx context.Context, logger *slog.Logger, q GenericWorkQueue[*ReceivedMessage], userSrv userService, cfg *config.Config) (*Backend, error) {
 	b := &Backend{
 		q:       q,
 		cfg:     cfg,

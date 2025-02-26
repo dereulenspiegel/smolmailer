@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dereulenspiegel/smolmailer/internal/config"
 	"github.com/emersion/go-sasl"
 	"github.com/emersion/go-smtp"
 	"github.com/stretchr/testify/mock"
@@ -35,7 +36,7 @@ func TestSendMail(t *testing.T) {
 	usrSrv.On("Authenticate", "test", "example").Return(nil)
 	usrSrv.On("IsValidSender", "test", "from@example.com").Return(true)
 
-	cfg := &Config{
+	cfg := &config.Config{
 		ListenAddr: "[::1]:4465", // TODO get random port
 		MailDomain: "example.com",
 	}

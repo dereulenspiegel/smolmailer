@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/dereulenspiegel/smolmailer/acme"
+	"github.com/dereulenspiegel/smolmailer/internal/config"
 	"github.com/emersion/go-msgauth/dkim"
 	"github.com/emersion/go-smtp"
 )
@@ -30,11 +31,11 @@ type Server struct {
 	ctxSender     context.Context
 	senderCancel  context.CancelFunc
 
-	cfg    *Config
+	cfg    *config.Config
 	logger *slog.Logger
 }
 
-func NewServer(ctx context.Context, logger *slog.Logger, cfg *Config) (*Server, error) {
+func NewServer(ctx context.Context, logger *slog.Logger, cfg *config.Config) (*Server, error) {
 
 	s := &Server{
 		cfg:    cfg,

@@ -17,13 +17,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dereulenspiegel/smolmailer/internal/config"
 	"github.com/emersion/go-smtp"
 )
 
 const maxRetries = 10
 
 type Sender struct {
-	cfg    *Config
+	cfg    *config.Config
 	q      GenericWorkQueue[*QueuedMessage]
 	logger *slog.Logger
 
@@ -36,7 +37,7 @@ type Sender struct {
 	defaultDialer *net.Dialer
 }
 
-func NewSender(ctx context.Context, logger *slog.Logger, cfg *Config, q GenericWorkQueue[*QueuedMessage]) (*Sender, error) {
+func NewSender(ctx context.Context, logger *slog.Logger, cfg *config.Config, q GenericWorkQueue[*QueuedMessage]) (*Sender, error) {
 	bCtx, cancel := context.WithCancel(ctx)
 
 	dialer := &net.Dialer{

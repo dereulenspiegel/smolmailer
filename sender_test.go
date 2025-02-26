@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dereulenspiegel/smolmailer/internal/config"
 	"github.com/emersion/go-smtp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -32,10 +33,10 @@ func TestDeliverMail(t *testing.T) {
 	sq, err := NewSQLiteWorkQueue[*QueuedMessage](filepath.Join(t.TempDir(), "queue.db"), "send.queue", 1, 300)
 	require.NoError(t, err)
 
-	sender, err := NewSender(ctx, slog.With("component", "sender"), &Config{
+	sender, err := NewSender(ctx, slog.With("component", "sender"), &config.Config{
 		MailDomain: "example.com",
 		QueuePath:  qDir,
-		Dkim: &DkimOpts{
+		Dkim: &config.DkimOpts{
 			Selector: "smolmailer",
 			PrivateKey: base64.StdEncoding.EncodeToString([]byte(`-----BEGIN PRIVATE KEY-----
 MC4CAQAwBQYDK2VwBCIEIJhGWXSKnABUEcPSYV00xfxhR6sf/3iEsJfrOxE3H/3r

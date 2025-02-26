@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dereulenspiegel/smolmailer/internal/config"
 	inbucketClient "github.com/inbucket/inbucket/pkg/rest/client"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
@@ -53,14 +54,14 @@ MC4CAQAwBQYDK2VwBCIEIPP6YdTb47JgAPxNhxtZTK1LAGs61eJYNa1S0S7G9Cv1
 	dkimKey := base64.StdEncoding.EncodeToString([]byte(dkimKeyPem))
 
 	logger := slog.Default()
-	cfg := &Config{
+	cfg := &config.Config{
 		MailDomain: "auth.example.com",
 		ListenAddr: ":2525",
 		ListenTls:  false,
 		LogLevel:   "DEBUG",
 		QueuePath:  filepath.Join(t.TempDir(), "queues"),
 		UserFile:   userFilePath,
-		Dkim: &DkimOpts{
+		Dkim: &config.DkimOpts{
 			Selector:   "smolmailer",
 			PrivateKey: dkimKey,
 		},

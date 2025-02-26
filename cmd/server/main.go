@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/dereulenspiegel/smolmailer"
+	"github.com/dereulenspiegel/smolmailer/internal/config"
 	"github.com/spf13/viper"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -33,11 +34,11 @@ func main() {
 	var err error
 
 	go func() {
-		smolmailer.ConfigDefaults()
+		config.ConfigDefaults()
 		if err := viper.ReadInConfig(); err != nil && !errors.Is(err, &viper.ConfigFileNotFoundError{}) {
 			logger.Warn("failed to read config", "err", err)
 		}
-		cfg := &smolmailer.Config{}
+		cfg := &config.Config{}
 		if err := viper.Unmarshal(cfg); err != nil {
 			logger.Warn("failed to unmarshal config", "err", err)
 			panic(err)

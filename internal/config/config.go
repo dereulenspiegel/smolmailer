@@ -1,4 +1,4 @@
-package smolmailer
+package config
 
 import (
 	"errors"
@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/dereulenspiegel/smolmailer/acme"
+	"github.com/dereulenspiegel/smolmailer/internal/utils"
 	"github.com/spf13/viper"
 )
 
@@ -68,10 +69,10 @@ func ConfigDefaults() {
 	viper.AddConfigPath("/config")
 
 	viper.SetDefault("mailDomain", "")
-	viper.SetDefault("tlsDomain","")
+	viper.SetDefault("tlsDomain", "")
 	viper.SetDefault("listenAddr", "[::]:2525")
 	viper.SetDefault("listenTls", false)
-	viper.SetDefault("logLevel", must(slog.LevelInfo.MarshalText()))
+	viper.SetDefault("logLevel", utils.Must(slog.LevelInfo.MarshalText()))
 	viper.SetDefault("sendAddr", "")
 	viper.SetDefault("queuePath", "/data/qeues")
 	viper.SetDefault("userFile", "/config/users.yaml")
