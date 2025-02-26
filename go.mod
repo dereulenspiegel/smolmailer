@@ -9,7 +9,7 @@ require (
 	github.com/emersion/go-msgauth v0.6.8
 	github.com/emersion/go-sasl v0.0.0-20241020182733-b788ff22d5a6
 	github.com/emersion/go-smtp v0.21.3
-	github.com/go-crypt/crypt v0.3.2
+	github.com/go-crypt/crypt v0.3.3
 	github.com/golangci/golangci-lint v1.63.4
 	github.com/inbucket/inbucket v2.0.0+incompatible
 	github.com/khepin/liteq v0.1.0
@@ -349,7 +349,7 @@ require (
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/go-acme/lego/v4 v4.22.2
-	github.com/go-crypt/x v0.3.2 // indirect
+	github.com/go-crypt/x v0.3.4 // indirect
 	github.com/go-jose/go-jose/v4 v4.0.4 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
