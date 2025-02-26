@@ -992,10 +992,10 @@ github.com/go-acme/lego/v4 v4.22.2/go.mod h1:E2FndyI3Ekv0usNJt46mFb9LVpV/XBYT+4E
 github.com/go-cmd/cmd v1.0.5/go.mod h1:y8q8qlK5wQibcw63djSl/ntiHUHXHGdCkPk0j4QeW4s=
 github.com/go-critic/go-critic v0.11.5 h1:TkDTOn5v7EEngMxu8KbuFqFR43USaaH8XRJLz1jhVYA=
 github.com/go-critic/go-critic v0.11.5/go.mod h1:wu6U7ny9PiaHaZHcvMDmdysMqvDem162Rh3zWTrqk8M=
-github.com/go-crypt/crypt v0.3.2 h1:I4i0u2g8X9bxCXIjvv19BDVXqQbddDQrURCJrOyyJos=
-github.com/go-crypt/crypt v0.3.2/go.mod h1:U0YhpCizEtaVC4gVfUUN0qGn1Z6+e3at+B5uLYx/sV0=
-github.com/go-crypt/x v0.3.2 h1:m2wn2+8tp28V4yDiW5NSTiyNSXnCoTs1R1+H+cAJA3M=
-github.com/go-crypt/x v0.3.2/go.mod h1:uelN9rbD2e2eqE8KA26B9R6OQ0TdM6msWdPsoMM1ZFk=
+github.com/go-crypt/crypt v0.3.3 h1:mBSh8U+vwDm3V+UHNMQqsxV0clzlvKbLcJXcafYFpCs=
+github.com/go-crypt/crypt v0.3.3/go.mod h1:ex5C1b58/tzCW6/rJfcdf5Y2TjgzmWVtX57sjpN3pUQ=
+github.com/go-crypt/x v0.3.4 h1:zgpaI55VOAbkkRup9+tLaZ02IWTV/xz63tohoY0t9+Y=
+github.com/go-crypt/x v0.3.4/go.mod h1:+uHWqfzD3S6YWxm18/Qp+4VcuBb0Le9dGUhX0zaWicU=
 github.com/go-errors/errors v1.0.1/go.mod h1:f4zRHt4oKfwPJE5k8C9vpYG+aDHdBFUsgrm6/TyX73Q=
 github.com/go-errors/errors v1.5.1 h1:ZwEMSLRCapFLflTpT7NKaAc7ukJ8ZPEjzlxt8rPN8bk=
 github.com/go-errors/errors v1.5.1/go.mod h1:sIVyrIiJhuEF+Pj9Ebtd6P/rEYROXFi3BopGUQ5a5Og=
