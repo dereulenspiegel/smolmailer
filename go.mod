@@ -1,7 +1,6 @@
 module github.com/dereulenspiegel/smolmailer
 
 go 1.23.3
-toolchain go1.24.0
 
 replace github.com/khepin/liteq => github.com/dereulenspiegel/liteq v0.1.1
 

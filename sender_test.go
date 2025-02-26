@@ -49,6 +49,7 @@ MC4CAQAwBQYDK2VwBCIEIJhGWXSKnABUEcPSYV00xfxhR6sf/3iEsJfrOxE3H/3r
 
 	smtpContainer, err := inbucket.Run(ctx, "inbucket/inbucket")
 	require.NoError(t, err)
+	time.Sleep(time.Second * 5) //Give the container more time to initialise for GH actions
 	defer func() {
 		if err := testcontainers.TerminateContainer(smtpContainer); err != nil {
 			log.Printf("failed to terminate container: %s", err)
