@@ -35,10 +35,12 @@ func bindStructFieldsToEnv(baseName string, configStruct any, viperConf viperIf)
 				return err
 			}
 		case reflect.Pointer:
-			fieldValue := y.FieldByName(field.Name).Elem()
-			switch fieldValue.Kind() { //nolint:golint,exhaustive
+			zeroVal := reflect.New(field.Type)
+			fieldKind := reflect.TypeOf(zeroVal.Elem()).Kind()
+
+			switch fieldKind { //nolint:golint,exhaustive
 			case reflect.Struct:
-				if err := bindStructFieldsToEnv(configPath, fieldValue.Elem(), viperConf); err != nil {
+				if err := bindStructFieldsToEnv(configPath, zeroVal.Elem().Interface(), viperConf); err != nil {
 					return err
 				}
 			default:

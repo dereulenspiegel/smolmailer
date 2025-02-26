@@ -18,6 +18,9 @@ type DkimOpts struct {
 }
 
 func (d *DkimOpts) IsValid() error {
+	if d == nil {
+		return errors.New("dkim options are not set")
+	}
 	if d.Selector == "" {
 		return errors.New("DKIM selector must be set")
 	}
@@ -68,6 +71,14 @@ func ConfigDefaults() {
 	viper.AddConfigPath("./")
 	viper.AddConfigPath("/config")
 
+	viper.SetDefault("acme.caUrl", "https://acme-v02.api.letsencrypt.org/directory")
+
+	viper.SetEnvPrefix("SMOLMAILER")
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	if err := BindStructToEnv(&Config{}, viper.GetViper()); err != nil {
+		panic(fmt.Errorf("failed to bind config to environment: %w", err))
+	}
+
 	viper.SetDefault("listenAddr", "[::]:2525")
 	viper.SetDefault("listenTls", false)
 	viper.SetDefault("logLevel", utils.Must(slog.LevelInfo.MarshalText()))
@@ -76,12 +87,4 @@ func ConfigDefaults() {
 	viper.SetDefault("acme.automaticRenew", true)
 	viper.SetDefault("acme.dir", "/data/acme")
 	viper.SetDefault("acme.renewalInterval", defaultAcmeRenewalInterval)
-
-	viper.SetDefault("acme.caUrl", "https://acme-v02.api.letsencrypt.org/directory")
-
-	viper.SetEnvPrefix("SMOLMAILER")
-	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-	if err := BindStructToEnv(&Config{}, viper.GetViper()); err != nil {
-		panic(fmt.Errorf("failed to bind config to environment: %w", err))
-	}
 }

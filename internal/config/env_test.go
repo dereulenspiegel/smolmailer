@@ -7,20 +7,24 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type subConfig2 struct {
+	StringVal string `mapstructure:"val"`
+}
 type testConfig struct {
 	StringKey string `mapstructure:"string1"`
 	IntKey    int    `mapstructure:"int2"`
 	SubConfig struct {
 		SubString string `mapstructure:"sub1"`
 	}
-	unexportedField int `mapstructure:"shouldntexist"` //nolint:golint,unused
+	Sub             *subConfig2 `mapstructure:"sub2"`
+	unexportedField int         `mapstructure:"shouldntexist"` //nolint:golint,unused
 }
 
 func TestBindEnvToStruct(t *testing.T) {
 	cfg := &testConfig{}
 
 	viperCfg := new(viperIfMock)
-	for _, bindName := range []string{"string1", "int2", "SubConfig.sub1"} {
+	for _, bindName := range []string{"string1", "int2", "SubConfig.sub1", "sub2.val"} {
 		viperCfg.On("BindEnv", bindName).Once().Return(nil)
 	}
 
