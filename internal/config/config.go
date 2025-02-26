@@ -68,24 +68,20 @@ func ConfigDefaults() {
 	viper.AddConfigPath("./")
 	viper.AddConfigPath("/config")
 
-	viper.SetDefault("mailDomain", "")
-	viper.SetDefault("tlsDomain", "")
 	viper.SetDefault("listenAddr", "[::]:2525")
 	viper.SetDefault("listenTls", false)
 	viper.SetDefault("logLevel", utils.Must(slog.LevelInfo.MarshalText()))
-	viper.SetDefault("sendAddr", "")
 	viper.SetDefault("queuePath", "/data/qeues")
 	viper.SetDefault("userFile", "/config/users.yaml")
-	viper.SetDefault("dkim.selector", "")
-	viper.SetDefault("dkim.privateKey", "")
 	viper.SetDefault("acme.automaticRenew", true)
 	viper.SetDefault("acme.dir", "/data/acme")
 	viper.SetDefault("acme.renewalInterval", defaultAcmeRenewalInterval)
-	viper.SetDefault("acme.email", "")
+
 	viper.SetDefault("acme.caUrl", "https://acme-v02.api.letsencrypt.org/directory")
-	viper.SetDefault("acme.dns01ProviderName", "")
 
 	viper.SetEnvPrefix("SMOLMAILER")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-	viper.AutomaticEnv()
+	if err := BindStructToEnv(&Config{}, viper.GetViper()); err != nil {
+		panic(fmt.Errorf("failed to bind config to environment: %w", err))
+	}
 }
