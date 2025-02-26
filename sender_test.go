@@ -11,11 +11,13 @@ import (
 	"time"
 
 	"github.com/dereulenspiegel/smolmailer/internal/config"
+	"github.com/docker/go-connections/nat"
 	"github.com/emersion/go-smtp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/inbucket"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 func TestDeliverMail(t *testing.T) {
@@ -47,7 +49,9 @@ MC4CAQAwBQYDK2VwBCIEIJhGWXSKnABUEcPSYV00xfxhR6sf/3iEsJfrOxE3H/3r
 	require.NoError(t, err)
 	defer sender.Close()
 
-	smtpContainer, err := inbucket.Run(ctx, "inbucket/inbucket")
+	mxPort, err := nat.NewPort("tcp", "2500")
+	require.NoError(t, err)
+	smtpContainer, err := inbucket.Run(ctx, "inbucket/inbucket", testcontainers.WithWaitStrategy(wait.ForListeningPort(mxPort)))
 	require.NoError(t, err)
 	time.Sleep(time.Second * 5) //Give the container more time to initialise for GH actions
 	defer func() {
@@ -57,9 +61,9 @@ MC4CAQAwBQYDK2VwBCIEIJhGWXSKnABUEcPSYV00xfxhR6sf/3iEsJfrOxE3H/3r
 	}()
 
 	sender.mxResolver = func(domain string) ([]*net.MX, error) {
-		containerPort, err := smtpContainer.MappedPort(ctx, "2500/tcp")
-		sender.mxPorts = []int{containerPort.Int()}
+		containerPort, err := smtpContainer.MappedPort(ctx, mxPort)
 		require.NoError(t, err)
+		sender.mxPorts = []int{containerPort.Int()}
 		host, err := smtpContainer.Host(ctx)
 		require.NoError(t, err)
 
