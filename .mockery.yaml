@@ -1,15 +1,17 @@
-with-expecter: true
-issue-845-fix: true
+issue-845-fix: True
+mockname: "{{.InterfaceName}}Mock"
+filename: "mock_{{.InterfaceName}}_test.go"
+dir: "{{.InterfaceDir}}"
+inpackage: True
 packages:
   github.com/dereulenspiegel/smolmailer:
     # place your package-specific config here
     config:
-      mockname: "{{.InterfaceName}}Mock"
-      filename: "mock_{{.InterfaceName}}_test.go"
-      inpackage: True
-      dir: "."
     interfaces:
       # select the interfaces you want mocked
       GenericQueue:
       GenericWorkQueue:
       userService:
+  github.com/dereulenspiegel/smolmailer/internal/config:
+    interfaces:
+      viperIf:
