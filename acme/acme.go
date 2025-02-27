@@ -253,7 +253,6 @@ func (a *AcmeTls) ObtainCertificate(domains ...string) error {
 }
 
 func (a *AcmeTls) isCertNotExpired(tlsCert *tls.Certificate) bool {
-	expired := false
 	logger := a.logger
 	// Check if any cert in the chain is expired
 	for _, derBytes := range tlsCert.Certificate {
@@ -263,11 +262,11 @@ func (a *AcmeTls) isCertNotExpired(tlsCert *tls.Certificate) bool {
 			// Unparseable certificates should be renewed and therefore count as expired
 			return false
 		}
-		if !expired && time.Now().After(cert.NotAfter) {
-			expired = true
+		if time.Now().After(cert.NotAfter) {
+			return true
 		}
 	}
-	return expired
+	return false
 }
 
 func (a *AcmeTls) loadDomainPrivateKey() (key *ecdsa.PrivateKey, err error) {
