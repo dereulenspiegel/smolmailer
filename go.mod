@@ -1,6 +1,7 @@
 module github.com/dereulenspiegel/smolmailer
 
 go 1.23.3
+toolchain go1.24.0
 
 replace github.com/khepin/liteq => github.com/dereulenspiegel/liteq v0.1.1
 
@@ -19,7 +20,7 @@ require (
 	github.com/testcontainers/testcontainers-go v0.35.0
 	github.com/testcontainers/testcontainers-go/modules/inbucket v0.35.0
 	github.com/vektra/mockery/v2 v2.52.3
-	github.com/wneessen/go-mail v0.6.1
+	github.com/wneessen/go-mail v0.6.2
 )
 
 require (
@@ -344,7 +345,7 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/docker v27.1.1+incompatible // indirect
-	github.com/docker/go-connections v0.5.0 // indirect
+	github.com/docker/go-connections v0.5.0
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
