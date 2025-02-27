@@ -13,6 +13,7 @@ on:
 
 jobs:
   lint:
+    if: false # Disable for now until golangci-linter is available for go1.24
     runs-on: ubuntu-latest
     permissions:
       contents: read
