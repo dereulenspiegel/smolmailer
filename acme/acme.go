@@ -225,7 +225,7 @@ func (a *AcmeTls) ObtainCertificate(domains ...string) error {
 	// Do not try to obtain certificates for domains we already have valid certs for
 	for _, domain := range domains {
 		cert, err := a.GetCertForDomain(domain)
-		if err != nil || !a.isCertNotExpired(cert) {
+		if err != nil || a.isCertExpired(cert) {
 			logger.With("err", err, "domain", domain).Info("certificate for domain not in cache or expired")
 			domainsToObtain = append(domainsToObtain, domain)
 		}
@@ -252,7 +252,7 @@ func (a *AcmeTls) ObtainCertificate(domains ...string) error {
 	return a.AddCertificate(certResource.Certificate, a.domainPrivateKey)
 }
 
-func (a *AcmeTls) isCertNotExpired(tlsCert *tls.Certificate) bool {
+func (a *AcmeTls) isCertExpired(tlsCert *tls.Certificate) bool {
 	logger := a.logger
 	// Check if any cert in the chain is expired
 	for _, derBytes := range tlsCert.Certificate {
@@ -260,7 +260,7 @@ func (a *AcmeTls) isCertNotExpired(tlsCert *tls.Certificate) bool {
 		if err != nil {
 			logger.With("err", err).Error("failed to parse certificate from cache during expiration check")
 			// Unparseable certificates should be renewed and therefore count as expired
-			return false
+			return true
 		}
 		if time.Now().After(cert.NotAfter) {
 			return true
