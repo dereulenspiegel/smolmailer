@@ -87,4 +87,5 @@ func ConfigDefaults() {
 	viper.SetDefault("acme.automaticRenew", true)
 	viper.SetDefault("acme.dir", "/data/acme")
 	viper.SetDefault("acme.renewalInterval", defaultAcmeRenewalInterval)
+	viper.SetDefault("acme.dns01.propagationTimeout", time.Minute*5)
 }

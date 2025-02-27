@@ -34,17 +34,22 @@ const (
 	pemTypeEcPrivateKey  = "EC PRIVATE KEY"
 )
 
-type Config struct {
-	Dir               string        `mapstructure:"dir"`
-	Email             string        `mapstructure:"email"`
-	CAUrl             string        `mapstructure:"caUrl"`
-	DNS01ProviderName string        `mapstructure:"dns01ProviderName"`
-	RenewalInterval   time.Duration `mapstructure:"renewalInterval"`
-	AutomaticRenew    bool          `mapstructure:"automaticRenew"`
+type DNS01Config struct {
+	DontWaitForPropagation bool          `mapstructure:"dontWaitForPropagation"`
+	PropagationTimeout     time.Duration `mapstructure:"propagationTimeout"`
+	ProviderName           string        `mapstructure:"providerName"`
+}
 
-	dns01Provider               challenge.Provider
-	dns01DontWaitForPropagation bool         //Disable looking up the autorative DNS in testing
-	httpClient                  *http.Client // Set custom http client for testing
+type Config struct {
+	Dir             string        `mapstructure:"dir"`
+	Email           string        `mapstructure:"email"`
+	CAUrl           string        `mapstructure:"caUrl"`
+	RenewalInterval time.Duration `mapstructure:"renewalInterval"`
+	AutomaticRenew  bool          `mapstructure:"automaticRenew"`
+	DNS01           *DNS01Config  `mapstructure:"dns01"`
+
+	dns01Provider challenge.Provider
+	httpClient    *http.Client // Set custom http client for testing
 }
 
 func (c *Config) IsValid() error {
@@ -54,7 +59,7 @@ func (c *Config) IsValid() error {
 	if c.Email == "" {
 		return fmt.Errorf("you need to specify an acme account email address")
 	}
-	if c.DNS01ProviderName == "" {
+	if c.DNS01.ProviderName == "" {
 		return fmt.Errorf("you need to specify a DNS-01 provider name, see https://go-acme.github.io/lego/dns/index.html")
 	}
 	return nil
@@ -133,13 +138,14 @@ func NewAcme(ctx context.Context, logger *slog.Logger, cfg *Config) (*AcmeTls, e
 	a.acmeClient = client
 
 	chlgOpts := []dns01.ChallengeOption{}
-	if cfg.dns01DontWaitForPropagation {
+	if cfg.DNS01.DontWaitForPropagation {
 		chlgOpts = append(chlgOpts, dns01.DisableAuthoritativeNssPropagationRequirement())
 	}
+	chlgOpts = append(chlgOpts, dns01.AddDNSTimeout(cfg.DNS01.PropagationTimeout))
 
 	dns01Provider := cfg.dns01Provider
 	if dns01Provider == nil {
-		dns01Provider, err = dns.NewDNSChallengeProviderByName(cfg.DNS01ProviderName)
+		dns01Provider, err = dns.NewDNSChallengeProviderByName(cfg.DNS01.ProviderName)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create DNS-01 challenge provider %s: %w", cfg.dns01Provider, err)
 		}

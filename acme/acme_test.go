@@ -39,8 +39,10 @@ func TestRegisterAcmeAccountAndObtainCertficate(t *testing.T) {
 		CAUrl:         caUrl,
 		dns01Provider: challengeProvider,
 
-		httpClient:                  httpClient,
-		dns01DontWaitForPropagation: true,
+		httpClient: httpClient,
+		DNS01: &DNS01Config{
+			DontWaitForPropagation: true,
+		},
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, a)
