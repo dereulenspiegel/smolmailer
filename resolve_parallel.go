@@ -39,6 +39,11 @@ func resolveParallel[T io.Closer](rfs ...func() (T, error)) (T, error) {
 	select {
 	case res = <-resChan:
 		go func(resChan chan T) {
+			defer func() {
+				// Recover and ignore possible panic when closing unused result
+				// TODO we need a better handling for these cases instead of ignoring
+				recover() //nolint:golint,errcheck
+			}()
 			for unusedRes := range resChan {
 				if !isNil(unusedRes) {
 					// Close the unused results
