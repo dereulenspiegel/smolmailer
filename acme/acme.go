@@ -254,10 +254,12 @@ func (a *AcmeTls) ObtainCertificate(domains ...string) error {
 
 func (a *AcmeTls) isCertNotExpired(tlsCert *tls.Certificate) bool {
 	expired := false
+	logger := a.logger
 	// Check if any cert in the chain is expired
 	for _, derBytes := range tlsCert.Certificate {
 		cert, err := x509.ParseCertificate(derBytes)
 		if err != nil {
+			logger.With("err", err).Error("failed to parse certificate from cache during expiration check")
 			// Unparseable certificates should be renewed and therefore count as expired
 			return false
 		}
