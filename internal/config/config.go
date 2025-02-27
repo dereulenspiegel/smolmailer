@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"strings"
 	"time"
 
@@ -30,6 +31,11 @@ func (d *DkimOpts) IsValid() error {
 	return nil
 }
 
+type TestingOpts struct {
+	MxPorts  []int
+	MxResolv func(string) ([]*net.MX, error)
+}
+
 type Config struct {
 	MailDomain      string       `mapstructure:"mailDomain"`
 	TlsDomain       string       `mapstructure:"tlsDomain"`
@@ -42,6 +48,8 @@ type Config struct {
 	AllowedIPRanges []string     `mapstructure:"allowedIPRanges"`
 	Acme            *acme.Config `mapstructure:"acme"`
 	Dkim            *DkimOpts    `mapstructure:"dkim"`
+
+	TestingOpts *TestingOpts `mapstructure:",omitempty"`
 }
 
 func (c *Config) IsValid() error {

@@ -1,4 +1,4 @@
-package smolmailer
+package sender
 
 import (
 	"bytes"
@@ -6,15 +6,17 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/dereulenspiegel/smolmailer/internal/backend"
+	"github.com/dereulenspiegel/smolmailer/internal/queue"
 	"github.com/emersion/go-msgauth/dkim"
 	"github.com/emersion/go-smtp"
 )
 
-type ReceiveProcessor func(*ReceivedMessage) (*ReceivedMessage, error)
-type PreSendProcessor func(*QueuedMessage) (*QueuedMessage, error)
+type ReceiveProcessor func(*backend.ReceivedMessage) (*backend.ReceivedMessage, error)
+type PreSendProcessor func(*queue.QueuedMessage) (*queue.QueuedMessage, error)
 
 type PreprocessorHandler struct {
-	receivingQueue GenericWorkQueue[*ReceivedMessage]
+	receivingQueue queue.GenericWorkQueue[*backend.ReceivedMessage]
 
 	receiveProcessors []ReceiveProcessor
 	preprocessors     []PreSendProcessor
@@ -38,7 +40,7 @@ func WithPreSendProcessors(preSendProcessors ...PreSendProcessor) ProcessingOpt 
 
 func NewProcessorHandler(ctx context.Context,
 	logger *slog.Logger,
-	receivingQueue GenericWorkQueue[*ReceivedMessage], opts ...ProcessingOpt) (*PreprocessorHandler, error) {
+	receivingQueue queue.GenericWorkQueue[*backend.ReceivedMessage], opts ...ProcessingOpt) (*PreprocessorHandler, error) {
 
 	p := &PreprocessorHandler{
 		receivingQueue:    receivingQueue,
@@ -62,7 +64,7 @@ func (p *PreprocessorHandler) runConsumeReceivingQueue(ctx context.Context) {
 	}
 }
 
-func (p *PreprocessorHandler) consumeReceivingQueue(ctx context.Context, receivedMsg *ReceivedMessage) (err error) {
+func (p *PreprocessorHandler) consumeReceivingQueue(ctx context.Context, receivedMsg *backend.ReceivedMessage) (err error) {
 	if receivedMsg.MailOpts == nil {
 		receivedMsg.MailOpts = &smtp.MailOptions{}
 	}
@@ -96,20 +98,20 @@ func (p *PreprocessorHandler) consumeReceivingQueue(ctx context.Context, receive
 	return nil
 }
 
-func (p *PreprocessorHandler) processReceivedMessage(receivedMsg *ReceivedMessage) (queuedMsgs []*QueuedMessage, err error) {
+func (p *PreprocessorHandler) processReceivedMessage(receivedMsg *backend.ReceivedMessage) (queuedMsgs []*queue.QueuedMessage, err error) {
 	queuedMsgs = receivedMsg.QueuedMessages()
 	return queuedMsgs, nil
 }
 
-func SendProcessor(ctx context.Context, sendingQueue GenericWorkQueue[*QueuedMessage], options ...queueOption) PreSendProcessor {
-	return func(msg *QueuedMessage) (*QueuedMessage, error) {
+func SendProcessor(ctx context.Context, sendingQueue queue.GenericWorkQueue[*queue.QueuedMessage], options ...queue.QueueOption) PreSendProcessor {
+	return func(msg *queue.QueuedMessage) (*queue.QueuedMessage, error) {
 		err := sendingQueue.Queue(ctx, msg, options...)
 		return msg, err
 	}
 }
 
 func DkimProcessor(dkimOptions *dkim.SignOptions) ReceiveProcessor {
-	return func(msg *ReceivedMessage) (*ReceivedMessage, error) {
+	return func(msg *backend.ReceivedMessage) (*backend.ReceivedMessage, error) {
 		signedBuf := &bytes.Buffer{}
 		if err := dkim.Sign(signedBuf, bytes.NewReader(msg.Body), dkimOptions); err != nil {
 			return msg, fmt.Errorf("failed to sign messag: %w", err)

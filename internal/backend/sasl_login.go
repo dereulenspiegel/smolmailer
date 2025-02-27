@@ -1,4 +1,4 @@
-package smolmailer
+package backend
 
 import "github.com/emersion/go-sasl"
 

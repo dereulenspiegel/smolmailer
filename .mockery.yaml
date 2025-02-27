@@ -1,17 +1,17 @@
 issue-845-fix: True
 mockname: "{{.InterfaceName}}Mock"
-filename: "mock_{{.InterfaceName}}_test.go"
-dir: "{{.InterfaceDir}}"
-inpackage: True
+outpkg: "{{.PackageName}}mocks"
+filename: "mock_{{.InterfaceName}}.go"
+dir: "{{.InterfaceDir}}/{{.PackageName}}mocks"
+inpackage: False
 packages:
-  github.com/dereulenspiegel/smolmailer:
-    # place your package-specific config here
+  github.com/dereulenspiegel/smolmailer/internal:
     config:
+      recursive: True
+      all: True
+  github.com/dereulenspiegel/smolmailer/internal/queue:
+    config:
+      all: False
     interfaces:
-      # select the interfaces you want mocked
       GenericQueue:
       GenericWorkQueue:
-      userService:
-  github.com/dereulenspiegel/smolmailer/internal/config:
-    interfaces:
-      viperIf:

@@ -1,4 +1,4 @@
-package smolmailer
+package backend
 
 import (
 	"context"
@@ -9,7 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dereulenspiegel/smolmailer/internal/backend/backendmocks"
 	"github.com/dereulenspiegel/smolmailer/internal/config"
+	"github.com/dereulenspiegel/smolmailer/internal/queue/queuemocks"
 	"github.com/emersion/go-sasl"
 	"github.com/emersion/go-smtp"
 	"github.com/stretchr/testify/mock"
@@ -29,10 +31,10 @@ func (s *serverDebugLogger) Println(v ...interface{}) {
 
 func TestSendMail(t *testing.T) {
 	ctx := context.Background()
-	q := NewGenericWorkQueueMock[*ReceivedMessage](t)
-	q.On("Queue", mock.AnythingOfType("context.backgroundCtx"), mock.IsType(&ReceivedMessage{}), mock.AnythingOfType("smolmailer.queueOption")).Return(nil)
+	q := queuemocks.NewGenericWorkQueueMock[*ReceivedMessage](t)
+	q.On("Queue", mock.AnythingOfType("context.backgroundCtx"), mock.IsType(&ReceivedMessage{}), mock.AnythingOfType("queue.QueueOption")).Return(nil)
 
-	usrSrv := newUserServiceMock(t)
+	usrSrv := backendmocks.NewUserServiceMock(t)
 	usrSrv.On("Authenticate", "test", "example").Return(nil)
 	usrSrv.On("IsValidSender", "test", "from@example.com").Return(true)
 

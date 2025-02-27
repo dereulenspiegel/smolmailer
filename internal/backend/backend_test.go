@@ -1,4 +1,4 @@
-package smolmailer
+package backend
 
 import (
 	"bytes"
@@ -8,6 +8,8 @@ import (
 	"net/netip"
 	"testing"
 
+	"github.com/dereulenspiegel/smolmailer/internal/backend/backendmocks"
+	"github.com/dereulenspiegel/smolmailer/internal/queue/queuemocks"
 	"github.com/emersion/go-smtp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -56,8 +58,8 @@ func TestValidateIPRange(t *testing.T) {
 
 func TestSessionQueuesSuccessfully(t *testing.T) {
 	ctx := context.Background()
-	q := NewGenericWorkQueueMock[*ReceivedMessage](t)
-	usrSrv := newUserServiceMock(t)
+	q := queuemocks.NewGenericWorkQueueMock[*ReceivedMessage](t)
+	usrSrv := backendmocks.NewUserServiceMock(t)
 
 	usrSrv.On("IsValidSender", "validUser", "valid@example.com").Return(true)
 
@@ -65,7 +67,7 @@ func TestSessionQueuesSuccessfully(t *testing.T) {
 
 	q.On("Queue", mock.AnythingOfType("context.backgroundCtx"), mock.MatchedBy(func(msg *ReceivedMessage) bool {
 		return msg.From == "valid@example.com" && msg.To[0].To == "valid@example.com" && string(msg.Body) == "test"
-	}), mock.AnythingOfType("smolmailer.queueOption")).Return(nil)
+	}), mock.AnythingOfType("queue.QueueOption")).Return(nil)
 
 	sess.authenticatedSubject = "validUser" // Pretend we went through authentication
 	require.NoError(t, sess.Mail("valid@example.com", &smtp.MailOptions{}))

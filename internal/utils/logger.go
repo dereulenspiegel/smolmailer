@@ -1,4 +1,4 @@
-package smolmailer
+package utils
 
 import (
 	"context"

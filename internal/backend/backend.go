@@ -1,4 +1,4 @@
-package smolmailer
+package backend
 
 import (
 	"context"
@@ -12,21 +12,22 @@ import (
 	"time"
 
 	"github.com/dereulenspiegel/smolmailer/internal/config"
+	"github.com/dereulenspiegel/smolmailer/internal/queue"
 	"github.com/emersion/go-sasl"
 	"github.com/emersion/go-smtp"
 )
 
-type userService interface {
+type UserService interface {
 	Authenticate(username, password string) error
 	IsValidSender(username, from string) bool
 }
 
 type Backend struct {
-	q       GenericWorkQueue[*ReceivedMessage]
+	q       queue.GenericWorkQueue[*ReceivedMessage]
 	cfg     *config.Config
 	logger  *slog.Logger
 	ctx     context.Context
-	userSrv userService
+	userSrv UserService
 
 	allowedIPNets []*net.IPNet
 }
@@ -56,7 +57,7 @@ func (b *Backend) isValidRemoteAddr(remoteAddr net.Addr) bool {
 	return false
 }
 
-func NewBackend(ctx context.Context, logger *slog.Logger, q GenericWorkQueue[*ReceivedMessage], userSrv userService, cfg *config.Config) (*Backend, error) {
+func NewBackend(ctx context.Context, logger *slog.Logger, q queue.GenericWorkQueue[*ReceivedMessage], userSrv UserService, cfg *config.Config) (*Backend, error) {
 	b := &Backend{
 		q:       q,
 		cfg:     cfg,
@@ -107,10 +108,10 @@ func (m *ReceivedMessage) LogValue() slog.Value {
 	)
 }
 
-func (r *ReceivedMessage) QueuedMessages() (msgs []*QueuedMessage) {
+func (r *ReceivedMessage) QueuedMessages() (msgs []*queue.QueuedMessage) {
 	receivedAt := time.Now()
 	for _, to := range r.To {
-		msgs = append(msgs, &QueuedMessage{
+		msgs = append(msgs, &queue.QueuedMessage{
 			From:       r.From,
 			To:         to.To,
 			RcptOpt:    to.RcptOpts,
@@ -123,32 +124,6 @@ func (r *ReceivedMessage) QueuedMessages() (msgs []*QueuedMessage) {
 	return msgs
 }
 
-type QueuedMessage struct {
-	From string
-	To   string
-	Body []byte
-
-	MailOpts *smtp.MailOptions
-	RcptOpt  *smtp.RcptOptions
-
-	ReceivedAt          time.Time
-	LastDeliveryAttempt time.Time
-	ErrorCount          int
-	LastErr             error
-}
-
-func (m *QueuedMessage) LogValue() slog.Value {
-	envelopeID := "na"
-	if m.MailOpts != nil {
-		envelopeID = m.MailOpts.EnvelopeID
-	}
-	return slog.GroupValue(
-		slog.String("from", m.From),
-		slog.String("to", m.To),
-		slog.String("envelopeId", envelopeID),
-	)
-}
-
 type Session struct {
 	Msg              *ReceivedMessage
 	ExpectedBodySize int64
@@ -158,15 +133,15 @@ type Session struct {
 	plainAuthServer sasl.Server
 	loginAuthServer sasl.Server
 
-	q          GenericWorkQueue[*ReceivedMessage]
-	userSrv    userService
+	q          queue.GenericWorkQueue[*ReceivedMessage]
+	userSrv    UserService
 	logger     *slog.Logger
 	ctx        context.Context
 	logVals    []slog.Attr
 	remoteAddr net.Addr
 }
 
-func NewSession(ctx context.Context, logger *slog.Logger, q GenericWorkQueue[*ReceivedMessage], userSrv userService, remoteAddr net.Addr) *Session {
+func NewSession(ctx context.Context, logger *slog.Logger, q queue.GenericWorkQueue[*ReceivedMessage], userSrv UserService, remoteAddr net.Addr) *Session {
 	logger.Info("Starting new session")
 	s := &Session{
 		Msg:        &ReceivedMessage{},
@@ -257,7 +232,7 @@ func (s *Session) Data(r io.Reader) (err error) {
 		logger.Error("failed to read message body", "err", err)
 		return fmt.Errorf("failed to read message body: %w", err)
 	}
-	if err := s.q.Queue(s.ctx, s.Msg, QueueWithAttempts(defaultRetryAttempts)); err != nil {
+	if err := s.q.Queue(s.ctx, s.Msg, queue.QueueWithAttempts(defaultRetryAttempts)); err != nil {
 		logger.Error("failed to queue received message", "err", err)
 		return fmt.Errorf("failed to queue received msg: %w", err)
 	}

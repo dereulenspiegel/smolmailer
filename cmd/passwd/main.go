@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/dereulenspiegel/smolmailer"
+	"github.com/dereulenspiegel/smolmailer/internal/users"
 )
 
 func main() {
@@ -12,6 +12,6 @@ func main() {
 		panic(fmt.Errorf("not enough arguments, please specify the password"))
 	}
 
-	encodedPasswd := smolmailer.MustEncodePassword(os.Args[1])
+	encodedPasswd := users.MustEncodePassword(os.Args[1])
 	fmt.Print(encodedPasswd)
 }

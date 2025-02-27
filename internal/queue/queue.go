@@ -1,4 +1,4 @@
-package smolmailer
+package queue
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/khepin/liteq"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type QueueError struct {
@@ -34,25 +35,25 @@ func newQueueErrorWithCause(message string, cause error) *QueueError {
 }
 
 type GenericWorkQueue[T any] interface {
-	Queue(ctx context.Context, item T, options ...queueOption) error
+	Queue(ctx context.Context, item T, options ...QueueOption) error
 	Consume(ctx context.Context, worker func(ctx context.Context, item T) error) error
 }
 
-type queueOption func(*liteq.QueueJobParams)
+type QueueOption func(*liteq.QueueJobParams)
 
-func QueueWithAttempts(attempts int) queueOption {
+func QueueWithAttempts(attempts int) QueueOption {
 	return func(job *liteq.QueueJobParams) {
 		job.RemainingAttempts = int64(attempts)
 	}
 }
 
-func QueueAfter(after time.Duration) queueOption {
+func QueueAfter(after time.Duration) QueueOption {
 	return func(job *liteq.QueueJobParams) {
 		job.ExecuteAfter = int64(after.Seconds())
 	}
 }
 
-func QueueWithDedupKey(key liteq.DedupingKey) queueOption {
+func QueueWithDedupKey(key liteq.DedupingKey) QueueOption {
 	return func(job *liteq.QueueJobParams) {
 		job.DedupingKey = key
 	}
@@ -87,7 +88,7 @@ func NewSQLiteWorkQueue[T any](path, queueName string, poolSize, timeout int) (*
 	return NewSQLiteWorkQueueOnDb[T](liteDb, queueName, poolSize, timeout)
 }
 
-func (s *SQLiteWorkQueue[T]) Queue(ctx context.Context, item T, options ...queueOption) error {
+func (s *SQLiteWorkQueue[T]) Queue(ctx context.Context, item T, options ...QueueOption) error {
 	bytes, err := json.Marshal(item)
 	if err != nil {
 		return newQueueErrorWithCause("failed to serialize work item", err)

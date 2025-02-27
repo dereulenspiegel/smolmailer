@@ -1,4 +1,4 @@
-package smolmailer
+package utils
 
 import (
 	"errors"
@@ -7,7 +7,7 @@ import (
 	"sync"
 )
 
-func resolveParallel[T io.Closer](rfs ...func() (T, error)) (T, error) {
+func ResolveParallel[T io.Closer](rfs ...func() (T, error)) (T, error) {
 	resChan := make(chan T, len(rfs))
 	errChan := make(chan error, len(rfs))
 	wg := &sync.WaitGroup{}

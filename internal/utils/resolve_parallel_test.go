@@ -1,4 +1,4 @@
-package smolmailer
+package utils
 
 import (
 	"errors"
@@ -48,7 +48,7 @@ func TestResolveParallelSuccess(t *testing.T) {
 	ff3 := fabFail(time.Millisecond * 400)
 
 	start := time.Now()
-	res, err := resolveParallel(ff1, fSlow, fSuccess, ff2, ff3)
+	res, err := ResolveParallel(ff1, fSlow, fSuccess, ff2, ff3)
 	stop := time.Now()
 	runDuration := stop.Sub(start)
 	require.NoError(t, err)
@@ -67,7 +67,7 @@ func TestResolveParallelFail(t *testing.T) {
 	ff3 := fabFail(time.Millisecond * 400)
 
 	start := time.Now()
-	res, err := resolveParallel(ff1, ff2, ff3)
+	res, err := ResolveParallel(ff1, ff2, ff3)
 	stop := time.Now()
 	runDuration := stop.Sub(start)
 	assert.Error(t, err)

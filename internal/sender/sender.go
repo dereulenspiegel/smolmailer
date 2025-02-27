@@ -1,14 +1,8 @@
-package smolmailer
+package sender
 
 import (
 	"context"
-	"crypto"
-	"crypto/ed25519"
-	"crypto/rsa"
 	"crypto/tls"
-	"crypto/x509"
-	"encoding/base64"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -18,6 +12,8 @@ import (
 	"time"
 
 	"github.com/dereulenspiegel/smolmailer/internal/config"
+	"github.com/dereulenspiegel/smolmailer/internal/queue"
+	"github.com/dereulenspiegel/smolmailer/internal/utils"
 	"github.com/emersion/go-smtp"
 )
 
@@ -25,7 +21,7 @@ const maxRetries = 10
 
 type Sender struct {
 	cfg    *config.Config
-	q      GenericWorkQueue[*QueuedMessage]
+	q      queue.GenericWorkQueue[*queue.QueuedMessage]
 	logger *slog.Logger
 
 	ctx       context.Context
@@ -37,7 +33,7 @@ type Sender struct {
 	defaultDialer *net.Dialer
 }
 
-func NewSender(ctx context.Context, logger *slog.Logger, cfg *config.Config, q GenericWorkQueue[*QueuedMessage]) (*Sender, error) {
+func NewSender(ctx context.Context, logger *slog.Logger, cfg *config.Config, q queue.GenericWorkQueue[*queue.QueuedMessage]) (*Sender, error) {
 	bCtx, cancel := context.WithCancel(ctx)
 
 	dialer := &net.Dialer{
@@ -67,6 +63,10 @@ func NewSender(ctx context.Context, logger *slog.Logger, cfg *config.Config, q G
 		mxPorts:       []int{25, 465, 587},
 		defaultDialer: dialer,
 	}
+	if cfg.TestingOpts != nil {
+		s.mxPorts = cfg.TestingOpts.MxPorts
+		s.mxResolver = cfg.TestingOpts.MxResolv
+	}
 	go s.run()
 	return s, nil
 }
@@ -86,7 +86,7 @@ func (s *Sender) run() {
 
 const defaultRetryPeriod = time.Minute * 4
 
-func (s *Sender) trySend(ctx context.Context, msg *QueuedMessage) error {
+func (s *Sender) trySend(ctx context.Context, msg *queue.QueuedMessage) error {
 	if msg.MailOpts == nil {
 		// TODO generate envelope id if missing
 		msg.MailOpts = &smtp.MailOptions{}
@@ -103,7 +103,7 @@ func (s *Sender) trySend(ctx context.Context, msg *QueuedMessage) error {
 			logger.Error("giving up delivering mail", "errorCount", msg.ErrorCount, "err", err)
 		}
 		attempts := maxRetries - msg.ErrorCount
-		if err := s.q.Queue(s.ctx, msg, QueueWithAttempts(attempts), QueueAfter(defaultRetryPeriod)); err != nil {
+		if err := s.q.Queue(s.ctx, msg, queue.QueueWithAttempts(attempts), queue.QueueAfter(defaultRetryPeriod)); err != nil {
 			logger.Error("failed to requeue failed message", "err", err)
 		}
 	}
@@ -179,10 +179,10 @@ func (s *Sender) dialHost(host string) (c *smtp.Client, err error) {
 			return c, nil
 		}
 	}
-	return resolveParallel(dialFuncs...)
+	return utils.ResolveParallel(dialFuncs...)
 }
 
-func (s *Sender) smtpDialog(c *smtp.Client, msg *QueuedMessage) error {
+func (s *Sender) smtpDialog(c *smtp.Client, msg *queue.QueuedMessage) error {
 	if err := c.Hello(s.cfg.MailDomain); err != nil {
 		c.Close()
 		return fmt.Errorf("hello cmd failed: %w", err)
@@ -217,7 +217,7 @@ func (s *Sender) smtpDialog(c *smtp.Client, msg *QueuedMessage) error {
 	return c.Quit()
 }
 
-func (s *Sender) sendMail(msg *QueuedMessage) error {
+func (s *Sender) sendMail(msg *queue.QueuedMessage) error {
 	logger := s.logger.With("to", msg.To, "from", msg.From, "envelopeId", msg.MailOpts.EnvelopeID)
 	msg.LastDeliveryAttempt = time.Now()
 	domain := strings.Split(msg.To, "@")[1]
@@ -256,60 +256,4 @@ func lookupMX(domain string) ([]*net.MX, error) {
 		return int(mx1.Pref) - int(mx2.Pref)
 	})
 	return mxRecords, nil
-}
-
-func ParseDkimKey(base64String string) (crypto.Signer, error) {
-	// To be able to store this in env vars, we base64 encode it
-	pemString, err := base64.StdEncoding.DecodeString(base64String)
-	if err != nil {
-		return nil, fmt.Errorf("failed to base64 decode pem string: %w", err)
-	}
-	block, _ := pem.Decode(pemString)
-	if block == nil {
-		return nil, fmt.Errorf("invalid PEM string")
-	}
-	switch block.Type {
-	case "PRIVATE KEY":
-		key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
-		return key.(ed25519.PrivateKey), err
-	case "RSA PRIVATE KEY":
-		return x509.ParsePKCS1PrivateKey(block.Bytes)
-	default:
-		return nil, fmt.Errorf("invalid pem block type: %s", block.Type)
-	}
-}
-
-func pubKey(privKey crypto.PrivateKey) (crypto.PublicKey, error) {
-	switch k := privKey.(type) {
-	case ed25519.PrivateKey:
-		return k.Public(), nil
-	case *rsa.PrivateKey:
-		return k.PublicKey, nil
-	default:
-		return nil, fmt.Errorf("unsupported private key type: %T", k)
-	}
-}
-
-func dnsDkimKey(publicKey crypto.PublicKey) (string, error) {
-	pubkeyBytes, err := x509.MarshalPKIXPublicKey(publicKey)
-	if err != nil {
-		return "", fmt.Errorf("failed to DER encode public key: %w", err)
-	}
-	return base64.RawStdEncoding.EncodeToString(pubkeyBytes), nil
-}
-
-func DkimTxtRecordContent(privateKey crypto.PrivateKey) (string, error) {
-	pubKey, err := pubKey(privateKey)
-	if err != nil {
-		return "", err
-	}
-	base64Key, err := dnsDkimKey(pubKey)
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("v=DKIM1;p=%s", base64Key), nil
-}
-
-func DkimDomain(selector, domain string) string {
-	return fmt.Sprintf("%s._domainkey.%s", selector, domain)
 }

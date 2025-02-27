@@ -1,4 +1,4 @@
-package smolmailer
+package dns
 
 import (
 	"errors"

@@ -1,4 +1,4 @@
-package smolmailer
+package users
 
 import (
 	"log/slog"
