@@ -146,11 +146,16 @@ type fileBackedCache struct {
 }
 
 func NewFileBackedCache(filePath string) (*fileBackedCache, error) {
-	return &fileBackedCache{
+	fc := &fileBackedCache{
 		fileLock:          &sync.Mutex{},
 		filePath:          filePath,
 		inMemoryCertCache: *NewInMemoryCache(),
-	}, nil
+	}
+	if err := fc.Load(); err != nil {
+		return nil, err
+	}
+
+	return fc, nil
 }
 
 type fileData struct {
@@ -222,6 +227,11 @@ func (f *fileBackedCache) store() (err error) {
 func (f *fileBackedCache) Load() error {
 	f.fileLock.Lock()
 	defer f.fileLock.Unlock()
+
+	if _, err := os.Stat(f.filePath); os.IsNotExist(err) {
+		// If the file does not exist subsequent operations will fail, but a non existant file shouldn't be a problem
+		return nil
+	}
 
 	jsonBytes, err := os.ReadFile(f.filePath)
 	if err != nil {

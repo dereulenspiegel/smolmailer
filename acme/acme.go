@@ -220,15 +220,25 @@ func (a *AcmeTls) goCheckRenew(ctx context.Context) {
 // ObtainCertificate obtains a certificate for every specified domain and puts it into the CertCache
 func (a *AcmeTls) ObtainCertificate(domains ...string) error {
 	domainsToObtain := []string{}
+	logger := a.logger.With("domains", strings.Join(domains, ","))
 
 	// Do not try to obtain certificates for domains we already have valid certs for
 	for _, domain := range domains {
 		cert, err := a.GetCertForDomain(domain)
 		if err != nil || !a.isCertNotExpired(cert) {
+			logger.With("err", err, "domain", domain).Info("certificate for domain not in cache or expired")
 			domainsToObtain = append(domainsToObtain, domain)
 		}
 	}
 
+	if len(domainsToObtain) == 0 {
+		logger.Info("certificates for all domains are cached and do not need to be requested")
+		// Nothing to do we have all the domains already
+		return nil
+	}
+
+	logger = logger.With("requestingDomains", strings.Join(domainsToObtain, ","))
+	logger.Info("requesting certificate for domains")
 	request := certificate.ObtainRequest{
 		PrivateKey: a.domainPrivateKey,
 		Bundle:     true,
@@ -236,6 +246,7 @@ func (a *AcmeTls) ObtainCertificate(domains ...string) error {
 	}
 	certResource, err := a.acmeClient.Certificate.Obtain(request)
 	if err != nil {
+		logger.With("err", err).Error("failed to request certificates for domains")
 		return fmt.Errorf("failed to obtain certificate: %w", err)
 	}
 	return a.AddCertificate(certResource.Certificate, a.domainPrivateKey)
