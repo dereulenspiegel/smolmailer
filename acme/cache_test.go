@@ -11,6 +11,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"math/big"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -126,4 +127,30 @@ func generateTestCertificate(fTemplate ...func(*x509.Certificate)) (crypto.Priva
 		return nil, nil, err
 	}
 	return privateKey, buf.Bytes(), nil
+}
+
+func TestFilebackedCache(t *testing.T) {
+	cacheFile := filepath.Join(t.TempDir(), "caches.json")
+	fc, err := NewFileBackedCache(cacheFile)
+	require.NoError(t, err)
+
+	cert, err := fc.GetCertForDomain("example.com")
+	require.Error(t, err)
+	require.Empty(t, cert)
+
+	key, testCert, err := generateTestCertificate()
+	require.NoError(t, err)
+	err = fc.AddCertificate(testCert, key)
+	require.NoError(t, err)
+
+	cert, err = fc.GetCertForDomain("example.com")
+	require.NoError(t, err)
+	assert.NotEmpty(t, cert)
+
+	fc2, err := NewFileBackedCache(cacheFile)
+	require.NoError(t, err)
+
+	cert, err = fc2.GetCertForDomain("example.com")
+	require.NoError(t, err)
+	assert.NotEmpty(t, cert)
 }
