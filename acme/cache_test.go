@@ -88,11 +88,15 @@ func TestRetrieveExpiringDomain(t *testing.T) {
 	err = c.AddCertificate(testCert, domainPrivateKey)
 	require.NoError(t, err)
 
-	expiringDomains, err := c.ExpiringDomains(time.Hour * 24 * 30)
+	expiringDomains, err := c.ExpiringDomains(time.Hour * (24 * 30))
 	require.NoError(t, err)
-	assert.Len(t, expiringDomains, 1)
+	require.Len(t, expiringDomains, 1)
 	assert.Contains(t, expiringDomains[0], "example.com")
 	assert.Contains(t, expiringDomains[0], "sub.example.com")
+
+	expiringDomains, err = c.ExpiringDomains(time.Hour * 28 * 24)
+	require.NoError(t, err)
+	assert.Len(t, expiringDomains, 0)
 }
 
 func generateTestCertificate(fTemplate ...func(*x509.Certificate)) (crypto.PrivateKey, []byte, error) {
