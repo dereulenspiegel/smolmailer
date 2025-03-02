@@ -117,9 +117,6 @@ func (i *inMemoryCertCache) ExpiringDomains(interval time.Duration) (domains [][
 				err = eerr
 				return false
 			}
-			if cert.IsCA {
-				continue
-			}
 			certId := fmt.Sprintf("%s-%s", cert.Issuer.CommonName, cert.SerialNumber.String())
 			if checked := checkeCerts[certId]; checked {
 				return true
