@@ -105,7 +105,7 @@ func (i *inMemoryCertCache) CleanupExpired() error {
 
 func (i *inMemoryCertCache) ExpiringDomains(interval time.Duration) (domains [][]string, err error) {
 	expiryDate := time.Now().Add(interval * -1)
-	checkeCerts := make(map[string]bool)
+	checkedCerts := make(map[string]bool)
 	i.certs.Range(func(key any, val any) bool {
 		tlsCert := val.(*tls.Certificate)
 		dnsDomains := []string{}
@@ -118,10 +118,10 @@ func (i *inMemoryCertCache) ExpiringDomains(interval time.Duration) (domains [][
 				return false
 			}
 			certId := fmt.Sprintf("%s-%s", cert.Issuer.CommonName, cert.SerialNumber.String())
-			if checked := checkeCerts[certId]; checked {
+			if checked, exists := checkedCerts[certId]; exists && checked {
 				return true
 			}
-			checkeCerts[certId] = true
+			checkedCerts[certId] = true
 			if cert.NotAfter.After(expiryDate) {
 				expiring = true
 				dnsDomains = append(dnsDomains, cert.DNSNames...)
