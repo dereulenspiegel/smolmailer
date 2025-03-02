@@ -124,6 +124,8 @@ func (i *inMemoryCertCache) ExpiringDomains(interval time.Duration) (domains [][
 			checkedCerts[certId] = true
 			if cert.NotAfter.After(expiryDate) {
 				expiring = true
+			}
+			if !cert.IsCA && expiring {
 				dnsDomains = append(dnsDomains, cert.DNSNames...)
 			}
 		}
