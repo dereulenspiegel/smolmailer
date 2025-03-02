@@ -186,7 +186,7 @@ func (a *AcmeTls) CheckRenew() (err error) {
 		return fmt.Errorf("failed to query expiring domains: %w", err)
 	}
 	for _, domains := range renewDomains {
-		if err := a.ObtainCertificate(domains...); err != nil {
+		if err := a.requestCertificate(domains...); err != nil {
 			return fmt.Errorf("failed to renew domains [%s]: %w", strings.Join(domains, ","), err)
 		}
 	}
@@ -217,6 +217,22 @@ func (a *AcmeTls) goCheckRenew(ctx context.Context) {
 	}
 }
 
+func (a *AcmeTls) requestCertificate(domains ...string) error {
+	logger := a.logger.With("requestingDomains", strings.Join(domains, ","))
+	logger.Info("requesting certificate for domains")
+	request := certificate.ObtainRequest{
+		PrivateKey: a.domainPrivateKey,
+		Bundle:     true,
+		Domains:    domains,
+	}
+	certResource, err := a.acmeClient.Certificate.Obtain(request)
+	if err != nil {
+		logger.With("err", err).Error("failed to request certificates for domains")
+		return fmt.Errorf("failed to obtain certificate: %w", err)
+	}
+	return a.AddCertificate(certResource.Certificate, a.domainPrivateKey)
+}
+
 // ObtainCertificate obtains a certificate for every specified domain and puts it into the CertCache
 func (a *AcmeTls) ObtainCertificate(domains ...string) error {
 	domainsToObtain := []string{}
@@ -236,20 +252,7 @@ func (a *AcmeTls) ObtainCertificate(domains ...string) error {
 		// Nothing to do we have all the domains already
 		return nil
 	}
-
-	logger = logger.With("requestingDomains", strings.Join(domainsToObtain, ","))
-	logger.Info("requesting certificate for domains")
-	request := certificate.ObtainRequest{
-		PrivateKey: a.domainPrivateKey,
-		Bundle:     true,
-		Domains:    domainsToObtain,
-	}
-	certResource, err := a.acmeClient.Certificate.Obtain(request)
-	if err != nil {
-		logger.With("err", err).Error("failed to request certificates for domains")
-		return fmt.Errorf("failed to obtain certificate: %w", err)
-	}
-	return a.AddCertificate(certResource.Certificate, a.domainPrivateKey)
+	return a.requestCertificate(domainsToObtain...)
 }
 
 func (a *AcmeTls) isCertExpired(tlsCert *tls.Certificate) bool {
@@ -262,7 +265,7 @@ func (a *AcmeTls) isCertExpired(tlsCert *tls.Certificate) bool {
 			// Unparseable certificates should be renewed and therefore count as expired
 			return true
 		}
-		if time.Now().After(cert.NotAfter) {
+		if time.Now().Add(a.cfg.RenewalInterval).After(cert.NotAfter) {
 			return true
 		}
 	}
