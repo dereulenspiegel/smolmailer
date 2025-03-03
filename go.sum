@@ -1978,8 +1978,8 @@ github.com/uudashr/gocognit v1.2.0 h1:3BU9aMr1xbhPlvJLSydKwdLN3tEUUrzPSSM8S4hDYR
 github.com/uudashr/gocognit v1.2.0/go.mod h1:k/DdKPI6XBZO1q7HgoV2juESI2/Ofj9AcHPZhBBdrTU=
 github.com/uudashr/iface v1.3.1 h1:bA51vmVx1UIhiIsQFSNq6GZ6VPTk3WNMZgRiCe9R29U=
 github.com/uudashr/iface v1.3.1/go.mod h1:4QvspiRd3JLPAEXBQ9AiZpLbJlrWWgRChOKDJEuQTdg=
-github.com/vektra/mockery/v2 v2.52.4 h1:r8gwPPKXHrqkv+7EX6g9ACAbI8RyPvg4ADDik9N4RJA=
-github.com/vektra/mockery/v2 v2.52.4/go.mod h1:zGDY/f6bip0Yh13GQ5j7xa43fuEoYBa4ICHEaihisHw=
+github.com/vektra/mockery/v2 v2.53.0 h1:QyZI8V2c+7oOEP/OnZjMMPlONXTgSsiLtaszzUz0yz0=
+github.com/vektra/mockery/v2 v2.53.0/go.mod h1:d0FVY5GgakIHczpYNVMLpYF2DttDgc97fHFTMcT3xlE=
 github.com/vinyldns/go-vinyldns v0.9.16 h1:GZJStDkcCk1F1AcRc64LuuMh+ENL8pHA0CVd4ulRMcQ=
 github.com/vinyldns/go-vinyldns v0.9.16/go.mod h1:5qIJOdmzAnatKjurI+Tl4uTus7GJKJxb+zitufjHs3Q=
 github.com/volcengine/volc-sdk-golang v1.0.193 h1:mL1rlk+m9SaqF2MSGFWfigEaz10ZVJiYDnFuWfj65Ww=
