@@ -94,8 +94,7 @@ func (s *Sender) trySend(ctx context.Context, msg *queue.QueuedMessage) error {
 	logger := s.logger.With("from", msg.From, "to", msg.To, "msgid", msg.MailOpts.EnvelopeID)
 	logger.Info("sending mail")
 
-	err := s.sendMail(msg)
-	if err != nil {
+	retrySend := func(msg *queue.QueuedMessage, err error) {
 		msg.LastErr = err
 		msg.ErrorCount++
 		logger.Error("failed to deliver mail", "err", err, "errorCount", msg.ErrorCount)
@@ -106,6 +105,23 @@ func (s *Sender) trySend(ctx context.Context, msg *queue.QueuedMessage) error {
 		if err := s.q.Queue(s.ctx, msg, queue.QueueWithAttempts(attempts), queue.QueueAfter(defaultRetryPeriod)); err != nil {
 			logger.Error("failed to requeue failed message", "err", err)
 		}
+	}
+
+	defer func(logger *slog.Logger) {
+		if a := recover(); a != nil {
+			switch t := a.(type) {
+			case error:
+				logger.With("err", t).Error("caught panic with error in sender")
+				retrySend(msg, t)
+			default:
+				logger.With("unknown", t).Error("caught panic with unknown type in sender")
+			}
+		}
+	}(s.logger)
+
+	err := s.sendMail(msg)
+	if err != nil {
+		retrySend(msg, err)
 	}
 	return nil
 }
