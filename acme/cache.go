@@ -9,7 +9,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
-	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -38,7 +37,7 @@ func (i *inMemoryCertCache) GetCertForDomain(domain string) (*tls.Certificate, e
 	if cert, exists := i.certs.Load(wildcard); exists {
 		return cert.(*tls.Certificate), nil
 	}
-	return nil, errors.New("no matching cert found")
+	return nil, fmt.Errorf("no matching cert found for hostname %s", domain)
 }
 
 func (i *inMemoryCertCache) AddCertificate(pemData []byte, privateKey crypto.PrivateKey) error {
