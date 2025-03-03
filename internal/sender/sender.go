@@ -168,8 +168,11 @@ func (s *Sender) dialHost(host string) (c *smtp.Client, err error) {
 		switch port {
 		case 25:
 			dialFuncs = append(dialFuncs, dialStartTls(logger, tlsConfig, address))
+			dialFuncs = append(dialFuncs, dialTls(logger, tlsConfig, address))
+			dialFuncs = append(dialFuncs, dialSmpt(logger, address))
 		case 587, 465:
 			dialFuncs = append(dialFuncs, dialTls(logger, tlsConfig, address))
+			dialFuncs = append(dialFuncs, dialStartTls(logger, tlsConfig, address))
 		default:
 			dialFuncs = append(dialFuncs, dialSmpt(logger, address))
 		}
