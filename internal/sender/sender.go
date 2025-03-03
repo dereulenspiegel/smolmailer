@@ -258,6 +258,10 @@ func (s *Sender) sendMail(msg *queue.QueuedMessage) error {
 			logger.Error("failed to dial host", "err", err)
 			continue
 		}
+		if c == nil {
+			logger.Error("smtp client is nil, but we got no error")
+			continue
+		}
 
 		if err := s.smtpDialog(c, msg); err != nil {
 			logger.Error("smtp dialog failed", "err", err)
