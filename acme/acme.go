@@ -47,6 +47,7 @@ type Config struct {
 	RenewalInterval time.Duration `mapstructure:"renewalInterval"`
 	AutomaticRenew  bool          `mapstructure:"automaticRenew"`
 	DNS01           *DNS01Config  `mapstructure:"dns01"`
+	DefaultHostname string        `mapstructure:"defaultHostname"`
 
 	dns01Provider challenge.Provider
 	httpClient    *http.Client // Set custom http client for testing
@@ -155,6 +156,11 @@ func NewAcme(ctx context.Context, logger *slog.Logger, cfg *Config) (*AcmeTls, e
 	}
 	if err := a.ensureRegistration(user); err != nil {
 		return nil, err
+	}
+	if cfg.DefaultHostname != "" {
+		if err := a.ObtainCertificate(cfg.DefaultHostname); err != nil {
+			return nil, fmt.Errorf("failed to obtain certificate for default hostname: %w", err)
+		}
 	}
 	if cfg.AutomaticRenew {
 		go a.goCheckRenew(ctx)
@@ -384,10 +390,15 @@ type ModifiableCertCache interface {
 }
 
 // NewTlsConfig returns a *tls.Config which serves certificates from the specified CertCache
-func NewTlsConfig(cache CertCache) *tls.Config {
+func (a *AcmeTls) NewTlsConfig() *tls.Config {
 	return &tls.Config{
 		GetCertificate: func(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
-			return cache.GetCertForDomain(hello.ServerName)
+			if hello.ServerName != "" {
+				return a.GetCertForDomain(hello.ServerName)
+			} else if a.cfg.DefaultHostname != "" {
+				return a.GetCertForDomain(a.cfg.DefaultHostname)
+			}
+			return nil, fmt.Errorf("no certificate for server name %s", hello.ServerName)
 		},
 		MinVersion: tls.VersionTLS12,
 	}

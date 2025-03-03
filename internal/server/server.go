@@ -138,7 +138,7 @@ func NewServer(ctx context.Context, logger *slog.Logger, cfg *config.Config) (*S
 			logger.Error("failed to obtain certificate for domain", "domain", cfg.TlsDomain, "err", err)
 			panic(err)
 		}
-		smtpServer.TLSConfig = acme.NewTlsConfig(acmeTls)
+		smtpServer.TLSConfig = acmeTls.NewTlsConfig()
 	}
 	s.smtpServer = smtpServer
 
