@@ -42,9 +42,13 @@ func NewSender(ctx context.Context, logger *slog.Logger, cfg *config.Config, q q
 
 	if cfg.SendAddr != "" {
 		sendIp := net.ParseIP(cfg.SendAddr)
-		dialer.LocalAddr = &net.TCPAddr{
-			IP:   sendIp,
-			Port: 0,
+		if sendIp != nil {
+			dialer.LocalAddr = &net.TCPAddr{
+				IP:   sendIp,
+				Port: 0,
+			}
+		} else {
+			logger.With("sendAddr", cfg.SendAddr).Error("send address has invalid format, ignoring it")
 		}
 	}
 
