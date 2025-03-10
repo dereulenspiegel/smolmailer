@@ -59,7 +59,7 @@ func DkimTxtRecordContent(privateKey crypto.PrivateKey) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("v=DKIM1;k=%s;h=%s;p=%s", "ed25519", "sha256", base64Key), nil
+	return fmt.Sprintf("v=DKIM1;k=%s;p=%s", "ed25519", base64Key), nil
 }
 
 func DkimDomain(selector, domain string) string {
