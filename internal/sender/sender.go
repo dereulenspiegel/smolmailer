@@ -111,18 +111,6 @@ func (s *Sender) trySend(ctx context.Context, msg *queue.QueuedMessage) error {
 		}
 	}
 
-	defer func(logger *slog.Logger) {
-		if a := recover(); a != nil {
-			switch t := a.(type) {
-			case error:
-				logger.With("err", t).Error("caught panic with error in sender")
-				retrySend(msg, t)
-			default:
-				logger.With("unknown", t).Error("caught panic with unknown type in sender")
-			}
-		}
-	}(s.logger)
-
 	err := s.sendMail(msg)
 	if err != nil {
 		retrySend(msg, err)
@@ -143,8 +131,9 @@ func (s *Sender) dialHost(host string) (c *smtp.Client, err error) {
 			}
 			conn, err := tlsDialer.Dial("tcp", address)
 			if err != nil {
-				logger.Error("failed to tls dial", "adress", address, "err", err)
+				err = fmt.Errorf("failed to dial tls to %s. %w", address, err)
 				errs = append(errs, err)
+				return nil, err
 			}
 			return smtp.NewClient(conn), nil
 		}
@@ -154,8 +143,8 @@ func (s *Sender) dialHost(host string) (c *smtp.Client, err error) {
 		return func() (*smtp.Client, error) {
 			conn, err := s.defaultDialer.Dial("tcp", address)
 			if err != nil {
+				err = fmt.Errorf("failed to dial for start TLS to %s. %w", address, err)
 				errs = append(errs, err)
-				logger.Error("failed to dial for start TLS", "err", err)
 				return nil, err
 			}
 			return smtp.NewClientStartTLS(conn, tlsConfig)
@@ -166,8 +155,8 @@ func (s *Sender) dialHost(host string) (c *smtp.Client, err error) {
 		return func() (*smtp.Client, error) {
 			conn, err := s.defaultDialer.Dial("tcp", address)
 			if err != nil {
+				err = fmt.Errorf("failed to dial smtp to %s. %w", address, err)
 				errs = append(errs, err)
-				logger.Error("failed to dial smtp", "err", err)
 				return nil, err
 			}
 			// Assume smtp for testing
@@ -195,11 +184,6 @@ func (s *Sender) dialHost(host string) (c *smtp.Client, err error) {
 			dialFuncs = append(dialFuncs, dialStartTls(logger, tlsConfig, address))
 		default:
 			dialFuncs = append(dialFuncs, dialSmtp(logger, address))
-		}
-		if c != nil {
-			logger.Info("succeeded dialing mx host")
-			c.SubmissionTimeout = time.Second * 10
-			return c, nil
 		}
 	}
 	return utils.ResolveParallel(dialFuncs...)
