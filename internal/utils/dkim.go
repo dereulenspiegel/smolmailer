@@ -43,9 +43,14 @@ func pubKey(privKey crypto.PrivateKey) (crypto.PublicKey, error) {
 }
 
 func dnsDkimKey(publicKey crypto.PublicKey) (string, error) {
-	pubkeyBytes, err := x509.MarshalPKIXPublicKey(publicKey)
-	if err != nil {
-		return "", fmt.Errorf("failed to DER encode public key: %w", err)
+	var pubkeyBytes []byte
+	switch k := publicKey.(type) {
+	case ed25519.PublicKey:
+		pubkeyBytes = []byte(k)
+	case *rsa.PublicKey:
+		pubkeyBytes = x509.MarshalPKCS1PublicKey(k)
+	default:
+		return "", fmt.Errorf("unsupported public key type: %T", k)
 	}
 	return base64.RawStdEncoding.EncodeToString(pubkeyBytes), nil
 }

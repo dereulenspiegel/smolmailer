@@ -27,5 +27,5 @@ MC4CAQAwBQYDK2VwBCIEIJhGWXSKnABUEcPSYV00xfxhR6sf/3iEsJfrOxE3H/3r
 
 	txtVal, err := DkimTxtRecordContent(privateKey)
 	require.NoError(t, err)
-	assert.Equal(t, "v=DKIM1;k=ed25519;h=sha256;p=MCowBQYDK2VwAyEAcg0U0fEFhhfu5KyEzQdS5WlErbZnF2YvUZIKnVSmxKg", txtVal)
+	assert.Equal(t, "v=DKIM1;k=ed25519;h=sha256;p=cg0U0fEFhhfu5KyEzQdS5WlErbZnF2YvUZIKnVSmxKg", txtVal)
 }
