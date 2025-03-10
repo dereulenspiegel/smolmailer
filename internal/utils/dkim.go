@@ -52,7 +52,7 @@ func dnsDkimKey(publicKey crypto.PublicKey) (string, error) {
 	default:
 		return "", fmt.Errorf("unsupported public key type: %T", k)
 	}
-	return base64.RawStdEncoding.EncodeToString(pubkeyBytes), nil
+	return base64.StdEncoding.EncodeToString(pubkeyBytes), nil
 }
 
 func DkimTxtRecordContent(privateKey crypto.PrivateKey) (string, error) {
