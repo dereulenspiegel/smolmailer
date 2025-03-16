@@ -70,7 +70,7 @@ func NewServer(ctx context.Context, logger *slog.Logger, cfg *config.Config) (*S
 	}
 
 	if err := dns.VerifyValidDKIMRecords(cfg.MailDomain, cfg.Dkim); err != nil {
-		logger.Error("failed to verify DKIM records")
+		logger.Error("failed to verify DKIM records", "err", err)
 	}
 
 	if err := dns.VerifySPFRecord(cfg.MailDomain, cfg.TlsDomain, cfg.SendAddr); err != nil {

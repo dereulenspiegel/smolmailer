@@ -49,17 +49,20 @@ func pubKey(privKey crypto.PrivateKey) (crypto.PublicKey, error) {
 	}
 }
 
-func dnsDkimKey(publicKey crypto.PublicKey) (string, error) {
+func dnsDkimKey(publicKey crypto.PublicKey) (string, string, error) {
 	var pubkeyBytes []byte
+	var keyType string
 	switch k := publicKey.(type) {
 	case ed25519.PublicKey:
+		keyType = "ed25519"
 		pubkeyBytes = []byte(k)
 	case *rsa.PublicKey:
+		keyType = "rsa"
 		pubkeyBytes = x509.MarshalPKCS1PublicKey(k)
 	default:
-		return "", fmt.Errorf("unsupported public key type: %T", k)
+		return "", "", fmt.Errorf("unsupported public key type: %T", k)
 	}
-	return base64.StdEncoding.EncodeToString(pubkeyBytes), nil
+	return base64.StdEncoding.EncodeToString(pubkeyBytes), keyType, nil
 }
 
 func DkimTxtRecordContent(privateKey crypto.PrivateKey) (string, error) {
@@ -67,11 +70,11 @@ func DkimTxtRecordContent(privateKey crypto.PrivateKey) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	base64Key, err := dnsDkimKey(pubKey)
+	base64Key, keyType, err := dnsDkimKey(pubKey)
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("v=DKIM1;k=%s;h=%s;p=%s", "ed25519", "sha256", base64Key), nil
+	return fmt.Sprintf("v=DKIM1;k=%s;h=%s;p=%s", keyType, "sha256", base64Key), nil
 }
 
 func DkimDomain(selector, domain string) string {
