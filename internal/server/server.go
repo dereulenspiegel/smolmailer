@@ -69,35 +69,16 @@ func NewServer(ctx context.Context, logger *slog.Logger, cfg *config.Config) (*S
 		return nil, fmt.Errorf("failed to create send queue: %w", err)
 	}
 
-	dkimKey, err := utils.ParseDkimKey(cfg.Dkim.PrivateKeys.Ed25519)
-	if err != nil {
-		logger.Error("failed to parse DKIM key", "err", err)
-		return nil, fmt.Errorf("failed to parse DKIM key: %w", err)
+	if err := dns.VerifyValidDKIMRecords(cfg.MailDomain, cfg.Dkim); err != nil {
+		logger.Error("failed to verify DKIM records")
 	}
-	dkimRecordValue, err := utils.DkimTxtRecordContent(dkimKey)
-	if err == nil {
-		dkimDomain := utils.DkimDomain(cfg.Dkim.Selector, cfg.MailDomain)
-		if err := dns.VerifyDKIMRecords(dkimDomain, dkimRecordValue); errors.Is(err, dns.ErrNoDKIMRecord) {
-			logger.Warn("Please add the following record to your DNS zone", "domain", dkimDomain, "recordValue", dkimRecordValue)
-		} else if err != nil {
-			logger.Error("failed to resolve and verify DKIM record", "err", err)
-		}
-	}
+
 	if err := dns.VerifySPFRecord(cfg.MailDomain, cfg.TlsDomain, cfg.SendAddr); err != nil {
 		logger.Warn("spf records are not properly setup", "err", err)
 	}
 
 	s.processorHandler, err = sender.NewProcessorHandler(ctx, logger.With("component", "messageProcessing"), s.receiveQueue,
-		sender.WithReceiveProcessors(sender.DkimProcessor(&dkim.SignOptions{
-			Domain:   cfg.MailDomain,
-			Selector: cfg.Dkim.Selector,
-			Signer:   dkimKey,
-			Hash:     crypto.SHA256,
-			HeaderKeys: []string{ // Recommended headers according to https://www.rfc-editor.org/rfc/rfc6376.html#section-5.4.1
-				"From", "Reply-to", "Subject", "Date", "To", "Cc", "Resent-Date", "Resent-From", "Resent-To", "Resent-Cc", "In-Reply-To", "References",
-				"List-Id", "List-Help", "List-Unsubscribe", "List-Subscribe", "List-Post", "List-Owner", "List-Archive",
-			},
-		})),
+		sender.WithReceiveProcessors(dkimSignerForKey(cfg, cfg.Dkim.PrivateKeys.Ed25519), dkimSignerForKey(cfg, cfg.Dkim.PrivateKeys.RSA)),
 		sender.WithPreSendProcessors(sender.SendProcessor(ctx, s.sendQueue, queue.QueueWithAttempts(3))))
 	if err != nil {
 		logger.Error("failed to create message processing", "err", err)
@@ -191,4 +172,21 @@ func (s *Server) Shutdown() error {
 		errs = append(errs, err)
 	}
 	return errors.Join(errs...)
+}
+
+func dkimSignerForKey(cfg *config.Config, privKeyString string) sender.ReceiveProcessor {
+	dkimKey, err := utils.ParseDkimKey(privKeyString)
+	if err != nil {
+		panic(err)
+	}
+	return sender.DkimProcessor(&dkim.SignOptions{
+		Domain:   cfg.MailDomain,
+		Selector: cfg.Dkim.Selector,
+		Signer:   utils.Signer(dkimKey),
+		Hash:     crypto.SHA256,
+		HeaderKeys: []string{ // Recommended headers according to https://www.rfc-editor.org/rfc/rfc6376.html#section-5.4.1
+			"From", "Reply-to", "Subject", "Date", "To", "Cc", "Resent-Date", "Resent-From", "Resent-To", "Resent-Cc", "In-Reply-To", "References",
+			"List-Id", "List-Help", "List-Unsubscribe", "List-Subscribe", "List-Post", "List-Owner", "List-Archive",
+		},
+	})
 }

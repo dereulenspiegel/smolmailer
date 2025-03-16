@@ -1,12 +1,15 @@
 package dns
 
 import (
+	"crypto"
 	"errors"
 	"fmt"
 	"net"
 	"strings"
 
 	"github.com/asggo/spf"
+	"github.com/dereulenspiegel/smolmailer/internal/config"
+	"github.com/dereulenspiegel/smolmailer/internal/utils"
 	"github.com/miekg/dns"
 )
 
@@ -16,6 +19,35 @@ var (
 	ErrInvalidSPFRecord = errors.New("invalid SPF record")
 	ErrRecordNotFound   = errors.New("record not found")
 )
+
+func VerifyValidDKIMRecords(domain string, dkimConfig *config.DkimOpts) error {
+	dkimPrivKey, err := utils.ParseDkimKey(dkimConfig.PrivateKeys.Ed25519)
+	if err != nil {
+		return fmt.Errorf("failed to parse ed25519 private key: %w", err)
+	}
+	if err := verifyDkimRecordForKey(dkimConfig.Selector, domain, dkimPrivKey); err != nil {
+		return err
+	}
+
+	dkimPrivKey, err = utils.ParseDkimKey(dkimConfig.PrivateKeys.RSA)
+	if err != nil {
+		return fmt.Errorf("failed to parse RSA private key: %w", err)
+	}
+	if err := verifyDkimRecordForKey(dkimConfig.Selector, domain, dkimPrivKey); err != nil {
+		return err
+	}
+	return nil
+}
+
+func verifyDkimRecordForKey(selector, domain string, privKey crypto.PrivateKey) error {
+
+	dkimRecordContent, err := utils.DkimTxtRecordContent(privKey)
+	if err != nil {
+		return err
+	}
+	dkimRecordDomain := utils.DkimDomain(selector, domain)
+	return VerifyDKIMRecords(dkimRecordDomain, dkimRecordContent)
+}
 
 func VerifyDKIMRecords(domain, value string) error {
 	config, _ := dns.ClientConfigFromFile("/etc/resolv.conf")

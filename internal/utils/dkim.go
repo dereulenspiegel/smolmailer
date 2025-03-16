@@ -10,7 +10,7 @@ import (
 	"fmt"
 )
 
-func ParseDkimKey(base64String string) (crypto.Signer, error) {
+func ParseDkimKey(base64String string) (crypto.PrivateKey, error) {
 	// To be able to store this in env vars, we base64 encode it
 	pemString, err := base64.StdEncoding.DecodeString(base64String)
 	if err != nil {
@@ -22,13 +22,20 @@ func ParseDkimKey(base64String string) (crypto.Signer, error) {
 	}
 	switch block.Type {
 	case "PRIVATE KEY":
-		key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
-		return key.(ed25519.PrivateKey), err
+		return x509.ParsePKCS8PrivateKey(block.Bytes)
 	case "RSA PRIVATE KEY":
 		return x509.ParsePKCS1PrivateKey(block.Bytes)
 	default:
 		return nil, fmt.Errorf("invalid pem block type: %s", block.Type)
 	}
+}
+
+func Signer(privKey crypto.PrivateKey) crypto.Signer {
+	signer, ok := privKey.(crypto.Signer)
+	if !ok {
+		panic(fmt.Errorf("can't assign private key of type %T as signer", privKey))
+	}
+	return signer
 }
 
 func pubKey(privKey crypto.PrivateKey) (crypto.PublicKey, error) {
