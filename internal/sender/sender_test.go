@@ -40,10 +40,12 @@ func TestDeliverMail(t *testing.T) {
 		QueuePath:  qDir,
 		Dkim: &config.DkimOpts{
 			Selector: "smolmailer",
-			PrivateKey: base64.StdEncoding.EncodeToString([]byte(`-----BEGIN PRIVATE KEY-----
+			PrivateKeys: &config.DkimPrivateKeys{
+				Ed25519: base64.StdEncoding.EncodeToString([]byte(`-----BEGIN PRIVATE KEY-----
 MC4CAQAwBQYDK2VwBCIEIJhGWXSKnABUEcPSYV00xfxhR6sf/3iEsJfrOxE3H/3r
 -----END PRIVATE KEY-----
 			`)),
+			},
 		},
 	}, sq)
 	require.NoError(t, err)

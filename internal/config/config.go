@@ -13,9 +13,15 @@ import (
 	"github.com/spf13/viper"
 )
 
+type DkimPrivateKeys struct {
+	Ed25519 string `mapstructure:"ed25519"`
+	RSA     string `mapstructure:"rsa"`
+}
+
 type DkimOpts struct {
-	Selector   string `mapstructure:"selector"`
-	PrivateKey string `mapstructure:"privateKey"`
+	Selector    string           `mapstructure:"selector"`
+	PrivateKeys *DkimPrivateKeys `mapstructure:"privateKeys"`
+	//PrivateKey string `mapstructure:"privateKey"`
 }
 
 func (d *DkimOpts) IsValid() error {
@@ -25,8 +31,14 @@ func (d *DkimOpts) IsValid() error {
 	if d.Selector == "" {
 		return errors.New("DKIM selector must be set")
 	}
-	if d.PrivateKey == "" {
-		return errors.New("DKIM Private Key must be set")
+	if d.PrivateKeys == nil {
+		return errors.New("DKIM private keys must be set")
+	}
+	if d.PrivateKeys.Ed25519 == "" {
+		return errors.New("Ed25519 DKIM Private Key must be set")
+	}
+	if d.PrivateKeys.RSA == "" {
+		return errors.New("RSA DKIM Private Key must be set")
 	}
 	return nil
 }

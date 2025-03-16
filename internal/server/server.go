@@ -69,7 +69,7 @@ func NewServer(ctx context.Context, logger *slog.Logger, cfg *config.Config) (*S
 		return nil, fmt.Errorf("failed to create send queue: %w", err)
 	}
 
-	dkimKey, err := utils.ParseDkimKey(cfg.Dkim.PrivateKey)
+	dkimKey, err := utils.ParseDkimKey(cfg.Dkim.PrivateKeys.Ed25519)
 	if err != nil {
 		logger.Error("failed to parse DKIM key", "err", err)
 		return nil, fmt.Errorf("failed to parse DKIM key: %w", err)

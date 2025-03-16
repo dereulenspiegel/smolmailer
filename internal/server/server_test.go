@@ -65,8 +65,8 @@ MC4CAQAwBQYDK2VwBCIEIPP6YdTb47JgAPxNhxtZTK1LAGs61eJYNa1S0S7G9Cv1
 		QueuePath:  filepath.Join(t.TempDir(), "queues"),
 		UserFile:   userFilePath,
 		Dkim: &config.DkimOpts{
-			Selector:   "smolmailer",
-			PrivateKey: dkimKey,
+			Selector:    "smolmailer",
+			PrivateKeys: &config.DkimPrivateKeys{Ed25519: dkimKey},
 		},
 		TestingOpts: &config.TestingOpts{
 			MxPorts: []int{containerPort.Int()},
