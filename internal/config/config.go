@@ -37,9 +37,10 @@ func (d *DkimOpts) IsValid() error {
 	if d.PrivateKeys.Ed25519 == "" {
 		return errors.New("Ed25519 DKIM Private Key must be set")
 	}
-	if d.PrivateKeys.RSA == "" {
-		return errors.New("RSA DKIM Private Key must be set")
-	}
+	// Make RSA optional for now
+	// if d.PrivateKeys.RSA == "" {
+	// 	return errors.New("RSA DKIM Private Key must be set")
+	// }
 	return nil
 }
 

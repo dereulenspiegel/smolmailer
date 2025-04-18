@@ -78,7 +78,7 @@ func NewServer(ctx context.Context, logger *slog.Logger, cfg *config.Config) (*S
 	}
 
 	s.processorHandler, err = sender.NewProcessorHandler(ctx, logger.With("component", "messageProcessing"), s.receiveQueue,
-		sender.WithReceiveProcessors(dkimSignerForKey(cfg, cfg.Dkim.PrivateKeys.Ed25519), dkimSignerForKey(cfg, cfg.Dkim.PrivateKeys.RSA)),
+		sender.WithReceiveProcessors(dkimSignerForKey(cfg, cfg.Dkim.PrivateKeys.Ed25519)), //dkimSignerForKey(cfg, cfg.Dkim.PrivateKeys.RSA)
 		sender.WithPreSendProcessors(sender.SendProcessor(ctx, s.sendQueue, queue.QueueWithAttempts(3))))
 	if err != nil {
 		logger.Error("failed to create message processing", "err", err)
