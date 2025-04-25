@@ -77,8 +77,13 @@ func NewServer(ctx context.Context, logger *slog.Logger, cfg *config.Config) (*S
 		logger.Warn("spf records are not properly setup", "err", err)
 	}
 
+	ed25519PemKey, err := cfg.Dkim.PrivateKeys.Ed25519.GetKey()
+	if err != nil {
+		return nil, err
+	}
+
 	s.processorHandler, err = sender.NewProcessorHandler(ctx, logger.With("component", "messageProcessing"), s.receiveQueue,
-		sender.WithReceiveProcessors(dkimSignerForKey(cfg, cfg.Dkim.PrivateKeys.Ed25519)), //dkimSignerForKey(cfg, cfg.Dkim.PrivateKeys.RSA)
+		sender.WithReceiveProcessors(dkimSignerForKey(cfg, ed25519PemKey)), //dkimSignerForKey(cfg, cfg.Dkim.PrivateKeys.RSA)
 		sender.WithPreSendProcessors(sender.SendProcessor(ctx, s.sendQueue, queue.QueueWithAttempts(3))))
 	if err != nil {
 		logger.Error("failed to create message processing", "err", err)

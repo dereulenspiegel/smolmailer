@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"encoding/base64"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,7 +8,9 @@ import (
 )
 
 func TestDecodeDkimPrivateKey(t *testing.T) {
-	privKeyStr := "LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCk1DNENBUUF3QlFZREsyVndCQ0lFSUNCWkgwYUExYk5WaVhQSEEweEl6R1dIWDRMaWlCczcyL0sxbzZpVFdNMFgKLS0tLS1FTkQgUFJJVkFURSBLRVktLS0tLQo="
+	privKeyStr := `-----BEGIN PRIVATE KEY-----
+MC4CAQAwBQYDK2VwBCIEICBZH0aA1bNViXPHA0xIzGWHX4LiiBs72/K1o6iTWM0X
+-----END PRIVATE KEY-----`
 
 	privKey, err := ParseDkimKey(privKeyStr)
 	require.NoError(t, err)
@@ -17,10 +18,10 @@ func TestDecodeDkimPrivateKey(t *testing.T) {
 }
 
 func TestCreateDnsRecords(t *testing.T) {
-	dkimKeyPem := base64.StdEncoding.EncodeToString([]byte(`-----BEGIN PRIVATE KEY-----
+	dkimKeyPem := `-----BEGIN PRIVATE KEY-----
 MC4CAQAwBQYDK2VwBCIEIJhGWXSKnABUEcPSYV00xfxhR6sf/3iEsJfrOxE3H/3r
 -----END PRIVATE KEY-----
-			`))
+			`
 
 	privateKey, err := ParseDkimKey(dkimKeyPem)
 	require.NoError(t, err)

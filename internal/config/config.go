@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"os"
 	"strings"
 	"time"
 
@@ -13,9 +14,34 @@ import (
 	"github.com/spf13/viper"
 )
 
+type PrivateKey struct {
+	Value  string `mapstructure:"key"`
+	Path   string `mapstructure:"path"`
+	keyVal string
+}
+
+func (p *PrivateKey) IsValid() error {
+
+	if p == nil || (p.Value == "" && p.Path == "") {
+		return errors.New("either key or path must be set for private key")
+	}
+	return nil
+}
+
+func (p *PrivateKey) GetKey() (string, error) {
+	if p.Value != "" {
+		return p.Value, nil
+	}
+	pemBytes, err := os.ReadFile(p.Path)
+	if err != nil {
+		return "", fmt.Errorf("failed to read key file from %s: %w", p.Path, err)
+	}
+	return string(pemBytes), nil
+}
+
 type DkimPrivateKeys struct {
-	Ed25519 string `mapstructure:"ed25519"`
-	RSA     string `mapstructure:"rsa"`
+	Ed25519 *PrivateKey `mapstructure:"ed25519"`
+	RSA     *PrivateKey `mapstructure:"rsa"`
 }
 
 type DkimOpts struct {
@@ -34,8 +60,8 @@ func (d *DkimOpts) IsValid() error {
 	if d.PrivateKeys == nil {
 		return errors.New("DKIM private keys must be set")
 	}
-	if d.PrivateKeys.Ed25519 == "" {
-		return errors.New("Ed25519 DKIM Private Key must be set")
+	if err := d.PrivateKeys.Ed25519.IsValid(); err != nil {
+		return err
 	}
 	// Make RSA optional for now
 	// if d.PrivateKeys.RSA == "" {
@@ -109,4 +135,21 @@ func ConfigDefaults() {
 	viper.SetDefault("acme.dir", "/data/acme")
 	viper.SetDefault("acme.renewalInterval", defaultAcmeRenewalInterval)
 	viper.SetDefault("acme.dns01.propagationTimeout", time.Minute*5)
+}
+
+func LoadConfig(logger *slog.Logger) (*Config, error) {
+	ConfigDefaults()
+	if err := viper.ReadInConfig(); err != nil && !errors.Is(err, &viper.ConfigFileNotFoundError{}) {
+		logger.Warn("failed to read config", "err", err)
+	}
+	cfg := &Config{}
+	if err := viper.Unmarshal(cfg); err != nil {
+		logger.Warn("failed to unmarshal config", "err", err)
+		return nil, err
+	}
+	if err := cfg.IsValid(); err != nil {
+		logger.Error("invalid/incomplete configuration", "err", err)
+		return nil, err
+	}
+	return cfg, nil
 }

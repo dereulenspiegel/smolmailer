@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"encoding/base64"
 	"log"
 	"log/slog"
 	"net"
@@ -46,14 +45,13 @@ func TestServerIntegration(t *testing.T) {
 	err = os.WriteFile(userFilePath, userYaml, 0660)
 	require.NoError(t, err)
 
-	dkimed25519KeyPem := `
+	dkimed25519Key := `
 -----BEGIN PRIVATE KEY-----
 MC4CAQAwBQYDK2VwBCIEIPP6YdTb47JgAPxNhxtZTK1LAGs61eJYNa1S0S7G9Cv1
 -----END PRIVATE KEY-----
 	`
-	dkimed25519Key := base64.StdEncoding.EncodeToString([]byte(dkimed25519KeyPem))
 
-	dkimRsaKeyPem := `
+	dkimRsaKey := `
 -----BEGIN PRIVATE KEY-----
 MIIJQgIBADANBgkqhkiG9w0BAQEFAASCCSwwggkoAgEAAoICAQC1oziq3IDW9Gwr
 3u8yfeUKkzoKioeHNKdbX+vADdv2/ycPvmWZt+guS/VTC2gTHy5DC9OQmPVm9Agu
@@ -107,7 +105,6 @@ BALh4y+qYtjgTfnC9g1UshJoTEWh+9cQlgTXn67hazDzLmI4ic+QUy8UDymbgk4f
 47P6nylmO1mYdcK77VvqihsaYYxM1A==
 -----END PRIVATE KEY-----
 	`
-	dkimRsaKey := base64.StdEncoding.EncodeToString([]byte(dkimRsaKeyPem))
 
 	containerPort, err := smtpContainer.MappedPort(ctx, "2500/tcp")
 	require.NoError(t, err)
@@ -122,7 +119,7 @@ BALh4y+qYtjgTfnC9g1UshJoTEWh+9cQlgTXn67hazDzLmI4ic+QUy8UDymbgk4f
 		UserFile:   userFilePath,
 		Dkim: &config.DkimOpts{
 			Selector:    "smolmailer",
-			PrivateKeys: &config.DkimPrivateKeys{Ed25519: dkimed25519Key, RSA: dkimRsaKey},
+			PrivateKeys: &config.DkimPrivateKeys{Ed25519: &config.PrivateKey{Value: dkimed25519Key}, RSA: &config.PrivateKey{Value: dkimRsaKey}},
 		},
 		TestingOpts: &config.TestingOpts{
 			MxPorts: []int{containerPort.Int()},

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -10,7 +9,6 @@ import (
 
 	"github.com/dereulenspiegel/smolmailer/internal/config"
 	"github.com/dereulenspiegel/smolmailer/internal/server"
-	"github.com/spf13/viper"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -34,19 +32,8 @@ func main() {
 	var err error
 
 	go func() {
-		config.ConfigDefaults()
-		if err := viper.ReadInConfig(); err != nil && !errors.Is(err, &viper.ConfigFileNotFoundError{}) {
-			logger.Warn("failed to read config", "err", err)
-		}
-		cfg := &config.Config{}
-		if err := viper.Unmarshal(cfg); err != nil {
-			logger.Warn("failed to unmarshal config", "err", err)
-			panic(err)
-		}
-		if err := cfg.IsValid(); err != nil {
-			logger.Error("invalid/incomplete configuration", "err", err)
-			panic(err)
-		}
+		var cfg *config.Config
+		cfg, err = config.LoadConfig(logger)
 		if err := logLevel.UnmarshalText([]byte(cfg.LogLevel)); err != nil {
 			logger.Error("failed to unmarshal log level", "err", err)
 			panic(err)

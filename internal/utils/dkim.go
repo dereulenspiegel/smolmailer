@@ -10,13 +10,8 @@ import (
 	"fmt"
 )
 
-func ParseDkimKey(base64String string) (crypto.PrivateKey, error) {
-	// To be able to store this in env vars, we base64 encode it
-	pemString, err := base64.StdEncoding.DecodeString(base64String)
-	if err != nil {
-		return nil, fmt.Errorf("failed to base64 decode pem string: %w", err)
-	}
-	block, _ := pem.Decode(pemString)
+func ParseDkimKey(pemString string) (crypto.PrivateKey, error) {
+	block, _ := pem.Decode([]byte(pemString))
 	if block == nil {
 		return nil, fmt.Errorf("invalid PEM string")
 	}

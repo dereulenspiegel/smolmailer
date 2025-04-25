@@ -21,7 +21,11 @@ var (
 )
 
 func VerifyValidDKIMRecords(domain string, dkimConfig *config.DkimOpts) error {
-	dkimPrivKey, err := utils.ParseDkimKey(dkimConfig.PrivateKeys.Ed25519)
+	ed25519PemString, err := dkimConfig.PrivateKeys.Ed25519.GetKey()
+	if err != nil {
+		return err
+	}
+	dkimPrivKey, err := utils.ParseDkimKey(ed25519PemString)
 	if err != nil {
 		return fmt.Errorf("failed to parse ed25519 private key: %w", err)
 	}
@@ -29,7 +33,11 @@ func VerifyValidDKIMRecords(domain string, dkimConfig *config.DkimOpts) error {
 		return err
 	}
 
-	dkimPrivKey, err = utils.ParseDkimKey(dkimConfig.PrivateKeys.RSA)
+	rsaPemString, err := dkimConfig.PrivateKeys.RSA.GetKey()
+	if err != nil {
+		return err
+	}
+	dkimPrivKey, err = utils.ParseDkimKey(rsaPemString)
 	if err != nil {
 		return fmt.Errorf("failed to parse RSA private key: %w", err)
 	}

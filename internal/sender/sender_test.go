@@ -2,7 +2,6 @@ package sender
 
 import (
 	"context"
-	"encoding/base64"
 	"log"
 	"log/slog"
 	"net"
@@ -41,10 +40,10 @@ func TestDeliverMail(t *testing.T) {
 		Dkim: &config.DkimOpts{
 			Selector: "smolmailer",
 			PrivateKeys: &config.DkimPrivateKeys{
-				Ed25519: base64.StdEncoding.EncodeToString([]byte(`-----BEGIN PRIVATE KEY-----
+				Ed25519: &config.PrivateKey{Value: `-----BEGIN PRIVATE KEY-----
 MC4CAQAwBQYDK2VwBCIEIJhGWXSKnABUEcPSYV00xfxhR6sf/3iEsJfrOxE3H/3r
 -----END PRIVATE KEY-----
-			`)),
+			`},
 			},
 		},
 	}, sq)
