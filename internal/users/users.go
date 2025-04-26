@@ -65,6 +65,11 @@ func (u *UserService) unmarshalConfig(userFileBytes []byte) error {
 	return nil
 }
 
+func (u *UserService) passwdFromEnv(username string) string {
+	envKey := fmt.Sprintf("SMOLMAILER_USERS_%s_PASSWORD_VALUE", username)
+	return os.Getenv(envKey)
+}
+
 func (u *UserService) Authenticate(username, password string) error {
 	logger := u.logger.With("username", username)
 	if userCfg, exists := u.users[username]; !exists {
@@ -74,6 +79,14 @@ func (u *UserService) Authenticate(username, password string) error {
 		if userCfg.Username != username {
 			logger.Warn("user name inconsistent")
 			return ErrInvalidCredentials
+		}
+		if userCfg.Password == "" {
+			// If password is empty, maybe we have the password injected via env var secret
+			envPasswd := u.passwdFromEnv(userCfg.Username)
+			if envPasswd != "" && envPasswd == password {
+				logger.Debug("user authenticated successfully with env var password")
+				return nil
+			}
 		}
 		if digest, err := u.passwdDecoder.Decode(userCfg.Password); err != nil {
 			logger.Error("failed to decode password digest", "err", err)
