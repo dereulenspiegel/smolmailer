@@ -16,7 +16,7 @@ require (
 	github.com/inbucket/inbucket v2.0.0+incompatible
 	github.com/khepin/liteq v0.1.0
 	github.com/mattn/go-sqlite3 v1.14.24
-	github.com/spf13/viper v1.20.0
+	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go v0.35.0
 	github.com/testcontainers/testcontainers-go/modules/inbucket v0.35.0
