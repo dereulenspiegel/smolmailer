@@ -44,6 +44,18 @@ type DkimPrivateKeys struct {
 	RSA     *PrivateKey `mapstructure:"rsa"`
 }
 
+func (d *DkimPrivateKeys) IsValid() error {
+	if d == nil {
+		return errors.New("DKIM private keys must be configured")
+	}
+	edErr := d.Ed25519.IsValid()
+	rsaErr := d.RSA.IsValid()
+	if edErr != nil && rsaErr != nil {
+		return errors.Join(edErr, rsaErr)
+	}
+	return nil
+}
+
 type DkimOpts struct {
 	Selector    string           `mapstructure:"selector"`
 	PrivateKeys *DkimPrivateKeys `mapstructure:"privateKeys"`
@@ -60,13 +72,9 @@ func (d *DkimOpts) IsValid() error {
 	if d.PrivateKeys == nil {
 		return errors.New("DKIM private keys must be set")
 	}
-	if err := d.PrivateKeys.Ed25519.IsValid(); err != nil {
+	if err := d.PrivateKeys.IsValid(); err != nil {
 		return err
 	}
-	// Make RSA optional for now
-	// if d.PrivateKeys.RSA == "" {
-	// 	return errors.New("RSA DKIM Private Key must be set")
-	// }
 	return nil
 }
 
