@@ -18,7 +18,7 @@ builds:
     main: ./cmd/server
     binary: smolmailer
     env:
-      - CGO_ENABLED=0
+      - CGO_ENABLED=1
     goos:
       - linux
     goarch:
@@ -31,6 +31,8 @@ builds:
       - -extldflags=-static
     tags:
       - sqlite_omit_load_extension
+    flags:
+      - -trimpath
 
 archives:
   - format: tar.gz
