@@ -34,6 +34,10 @@ func main() {
 	go func() {
 		var cfg *config.Config
 		cfg, err = config.LoadConfig(logger)
+		if err != nil {
+			logger.Error("failed to load config", "err", err)
+			panic(err)
+		}
 		if err := logLevel.UnmarshalText([]byte(cfg.LogLevel)); err != nil {
 			logger.Error("failed to unmarshal log level", "err", err)
 			panic(err)
