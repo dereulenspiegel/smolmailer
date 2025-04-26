@@ -28,10 +28,12 @@ builds:
       - v2
     mod_timestamp: "{{ .CommitTimestamp }}"
     ldflags:
+      - -s
+      - -w
       - -linkmode external
-      - -extldflags=-static
-    gcflags:
-      - all=-trimpath={{.Env.GOPATH}}
+      - -extldflags='-static'
+    #gcflags:
+    #  - all=-trimpath={{.Env.GOPATH}}
     tags:
       - sqlite_omit_load_extension
     flags:
