@@ -29,6 +29,9 @@ func (p *PrivateKey) IsValid() error {
 }
 
 func (p *PrivateKey) GetKey() (string, error) {
+	if p == nil {
+		return "", errors.New("private key not set")
+	}
 	if p.Value != "" {
 		return p.Value, nil
 	}
