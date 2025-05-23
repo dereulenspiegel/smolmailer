@@ -20,7 +20,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go v0.37.0
 	github.com/testcontainers/testcontainers-go/modules/inbucket v0.37.0
-	github.com/vektra/mockery/v2 v2.53.3
+	github.com/vektra/mockery/v2 v2.53.4
 	github.com/wneessen/go-mail v0.6.2
 )
 
