@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/go-acme/lego/v4/challenge/dns01"
 	"github.com/stretchr/testify/assert"
@@ -12,6 +13,7 @@ import (
 )
 
 func TestRegisterAcmeAccountAndObtainCertficate(t *testing.T) {
+	t.Setenv("LEGO_DEBUG_ACME_HTTP_CLIENT", "1")
 	ctx := context.Background()
 	pebbleChallengeCtr, err := SetupPebbleChallengeServer(ctx)
 	require.NoError(t, err)
@@ -32,6 +34,9 @@ func TestRegisterAcmeAccountAndObtainCertficate(t *testing.T) {
 	challengeProvider, err := pebbleChallengeCtr.DNS01ChallengeProvider(ctx)
 	require.NoError(t, err)
 
+	err = dns01.AddRecursiveNameservers([]string{localDns})(nil)
+	require.NoError(t, err)
+
 	acmeDir := t.TempDir()
 	a, err := NewAcme(context.Background(), slog.Default(), &Config{
 		Dir:           acmeDir,
@@ -42,13 +47,11 @@ func TestRegisterAcmeAccountAndObtainCertficate(t *testing.T) {
 		httpClient: httpClient,
 		DNS01: &DNS01Config{
 			DontWaitForPropagation: true,
+			PropagationTimeout:     time.Second * 60,
 		},
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, a)
-
-	err = dns01.AddRecursiveNameservers([]string{localDns})(nil)
-	require.NoError(t, err)
 
 	err = a.ObtainCertificate("example.com")
 	require.NoError(t, err)
