@@ -138,6 +138,10 @@ func NewAcme(ctx context.Context, logger *slog.Logger, cfg *Config) (*AcmeTls, e
 	}
 	a.acmeClient = client
 
+	if err := a.ensureRegistration(user); err != nil {
+		return nil, err
+	}
+
 	chlgOpts := []dns01.ChallengeOption{}
 	if cfg.DNS01.DontWaitForPropagation {
 		chlgOpts = append(chlgOpts, dns01.DisableAuthoritativeNssPropagationRequirement())
@@ -153,9 +157,6 @@ func NewAcme(ctx context.Context, logger *slog.Logger, cfg *Config) (*AcmeTls, e
 	}
 	if err := client.Challenge.SetDNS01Provider(dns01Provider, chlgOpts...); err != nil {
 		return nil, fmt.Errorf("failed to set %s as DNS-01 challenge provider: %w", cfg.dns01Provider, err)
-	}
-	if err := a.ensureRegistration(user); err != nil {
-		return nil, err
 	}
 	if cfg.DefaultHostname != "" {
 		if err := a.ObtainCertificate(cfg.DefaultHostname); err != nil {
