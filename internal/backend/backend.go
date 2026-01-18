@@ -15,6 +15,7 @@ import (
 	"github.com/dereulenspiegel/smolmailer/internal/queue"
 	"github.com/emersion/go-sasl"
 	"github.com/emersion/go-smtp"
+	"github.com/khepin/liteq"
 )
 
 type UserService interface {
@@ -232,7 +233,7 @@ func (s *Session) Data(r io.Reader) (err error) {
 		logger.Error("failed to read message body", "err", err)
 		return fmt.Errorf("failed to read message body: %w", err)
 	}
-	if err := s.q.Queue(s.ctx, s.Msg, queue.QueueWithAttempts(defaultRetryAttempts)); err != nil {
+	if err := s.q.Queue(s.ctx, s.Msg, liteq.Retries(defaultRetryAttempts)); err != nil {
 		logger.Error("failed to queue received message", "err", err)
 		return fmt.Errorf("failed to queue received msg: %w", err)
 	}

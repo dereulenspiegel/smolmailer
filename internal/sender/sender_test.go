@@ -13,6 +13,7 @@ import (
 	"github.com/dereulenspiegel/smolmailer/internal/queue"
 	"github.com/docker/go-connections/nat"
 	"github.com/emersion/go-smtp"
+	"github.com/khepin/liteq"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/inbucket"
@@ -31,8 +32,9 @@ func TestDeliverMail(t *testing.T) {
 		MailOpts:   &smtp.MailOptions{},
 	}
 
-	sq, err := queue.NewSQLiteWorkQueue[*queue.QueuedMessage](filepath.Join(t.TempDir(), "queue.db"), "send.queue", 1, 300)
+	jq, err := liteq.NewFromPath(filepath.Join(t.TempDir(), "queue.db"))
 	require.NoError(t, err)
+	sq := liteq.NewQueue[*queue.QueuedMessage](jq, "send.queue", liteq.JSONMarshaler[*queue.QueuedMessage]{})
 
 	sender, err := NewSender(ctx, slog.With("component", "sender"), &config.Config{
 		MailDomain: "example.com",
@@ -74,6 +76,6 @@ MC4CAQAwBQYDK2VwBCIEIJhGWXSKnABUEcPSYV00xfxhR6sf/3iEsJfrOxE3H/3r
 		return []*net.MX{mxRecord}, nil
 	}
 
-	err = sq.Queue(context.Background(), msg)
+	err = sq.Put(context.Background(), msg)
 	require.NoError(t, err)
 }

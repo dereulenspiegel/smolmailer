@@ -67,7 +67,7 @@ func TestSessionQueuesSuccessfully(t *testing.T) {
 
 	q.On("Queue", mock.AnythingOfType("context.backgroundCtx"), mock.MatchedBy(func(msg *ReceivedMessage) bool {
 		return msg.From == "valid@example.com" && msg.To[0].To == "valid@example.com" && string(msg.Body) == "test"
-	}), mock.AnythingOfType("queue.QueueOption")).Return(nil)
+	}), mock.AnythingOfType("liteq.QueueOption")).Return(nil)
 
 	sess.authenticatedSubject = "validUser" // Pretend we went through authentication
 	require.NoError(t, sess.Mail("valid@example.com", &smtp.MailOptions{}))

@@ -32,7 +32,7 @@ func TestWorkerQueue(t *testing.T) {
 		require.NoError(t, err)
 	}()
 	require.NoError(t, err)
-	err = wq.Queue(context.Background(), &TestMsgType{
+	err = wq.Put(context.Background(), &TestMsgType{
 		TestField: "foo",
 	})
 	require.NoError(t, err)

@@ -21,6 +21,7 @@ import (
 	"github.com/dereulenspiegel/smolmailer/internal/utils"
 	"github.com/emersion/go-msgauth/dkim"
 	"github.com/emersion/go-smtp"
+	"github.com/khepin/liteq"
 )
 
 type Server struct {
@@ -57,13 +58,18 @@ func NewServer(ctx context.Context, logger *slog.Logger, cfg *config.Config) (*S
 		logger.Error("failed to open sqlite queue db", "err", err)
 		return nil, fmt.Errorf("failed to open sqlite queue db: %w", err)
 	}
+	jq, err := liteq.New(liteDb)
+	if err != nil {
+		logger.Error("failed to create sqlite based job queue", "err", err)
+		return nil, fmt.Errorf("failed to create sqlite based job queue: %w", err)
+	}
 
-	s.receiveQueue, err = queue.NewSQLiteWorkQueueOnDb[*backend.ReceivedMessage](liteDb, "receive.queue", 10, 300)
+	s.receiveQueue = liteq.NewQueue[*backend.ReceivedMessage](jq, "receive.queue", liteq.JSONMarshaler[*backend.ReceivedMessage]{})
 	if err != nil {
 		logger.Error("failed to create receive queue", "err", err)
 		return nil, fmt.Errorf("failed to create receive queue: %w", err)
 	}
-	s.sendQueue, err = queue.NewSQLiteWorkQueueOnDb[*queue.QueuedMessage](liteDb, "send.queue", 10, 300)
+	s.sendQueue = liteq.NewQueue[*queue.QueuedMessage](jq, "send.queue", liteq.JSONMarshaler[*queue.QueuedMessage]{})
 	if err != nil {
 		logger.Error("failed to create send queue", "err", err)
 		return nil, fmt.Errorf("failed to create send queue: %w", err)
@@ -93,7 +99,7 @@ func NewServer(ctx context.Context, logger *slog.Logger, cfg *config.Config) (*S
 
 	s.processorHandler, err = sender.NewProcessorHandler(ctx, logger.With("component", "messageProcessing"), s.receiveQueue,
 		sender.WithReceiveProcessors(dkimSigners...),
-		sender.WithPreSendProcessors(sender.SendProcessor(ctx, s.sendQueue, queue.QueueWithAttempts(3))))
+		sender.WithPreSendProcessors(sender.SendProcessor(ctx, s.sendQueue, liteq.Retries(3))))
 	if err != nil {
 		logger.Error("failed to create message processing", "err", err)
 		return nil, fmt.Errorf("failed to create message processing: %w", err)

@@ -32,7 +32,7 @@ func (s *serverDebugLogger) Println(v ...interface{}) {
 func TestSendMail(t *testing.T) {
 	ctx := context.Background()
 	q := queuemocks.NewGenericWorkQueueMock[*ReceivedMessage](t)
-	q.On("Queue", mock.AnythingOfType("context.backgroundCtx"), mock.IsType(&ReceivedMessage{}), mock.AnythingOfType("queue.QueueOption")).Return(nil)
+	q.On("Queue", mock.AnythingOfType("context.backgroundCtx"), mock.IsType(&ReceivedMessage{}), mock.AnythingOfType("liteq.QueueOption")).Return(nil)
 
 	usrSrv := backendmocks.NewUserServiceMock(t)
 	usrSrv.On("Authenticate", "test", "example").Return(nil)

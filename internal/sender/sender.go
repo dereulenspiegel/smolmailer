@@ -15,6 +15,7 @@ import (
 	"github.com/dereulenspiegel/smolmailer/internal/queue"
 	"github.com/dereulenspiegel/smolmailer/internal/utils"
 	"github.com/emersion/go-smtp"
+	"github.com/khepin/liteq"
 )
 
 const maxRetries = 10
@@ -106,7 +107,7 @@ func (s *Sender) trySend(ctx context.Context, msg *queue.QueuedMessage) error {
 			logger.Error("giving up delivering mail", "errorCount", msg.ErrorCount, "err", err)
 		}
 		attempts := maxRetries - msg.ErrorCount
-		if err := s.q.Queue(s.ctx, msg, queue.QueueWithAttempts(attempts), queue.QueueAfter(defaultRetryPeriod)); err != nil {
+		if err := s.q.Queue(s.ctx, msg, liteq.Retries(attempts), liteq.ExecuteAfter(defaultRetryPeriod)); err != nil {
 			logger.Error("failed to requeue failed message", "err", err)
 		}
 	}

@@ -10,10 +10,16 @@ import (
 	"github.com/dereulenspiegel/smolmailer/internal/queue"
 	"github.com/emersion/go-msgauth/dkim"
 	"github.com/emersion/go-smtp"
+	"github.com/khepin/liteq"
 )
 
 type ReceiveProcessor func(*backend.ReceivedMessage) (*backend.ReceivedMessage, error)
 type PreSendProcessor func(*queue.QueuedMessage) (*queue.QueuedMessage, error)
+
+type JobQueue[M any] interface {
+	Put(context.Context, M, ...liteq.QueueOption) error
+	Consume(context.Context, liteq.ConsumeFunc[M], ...liteq.ConsumeOpt) error
+}
 
 type PreprocessorHandler struct {
 	receivingQueue queue.GenericWorkQueue[*backend.ReceivedMessage]
@@ -103,7 +109,7 @@ func (p *PreprocessorHandler) processReceivedMessage(receivedMsg *backend.Receiv
 	return queuedMsgs, nil
 }
 
-func SendProcessor(ctx context.Context, sendingQueue queue.GenericWorkQueue[*queue.QueuedMessage], options ...queue.QueueOption) PreSendProcessor {
+func SendProcessor(ctx context.Context, sendingQueue queue.GenericWorkQueue[*queue.QueuedMessage], options ...liteq.QueueOption) PreSendProcessor {
 	return func(msg *queue.QueuedMessage) (*queue.QueuedMessage, error) {
 		err := sendingQueue.Queue(ctx, msg, options...)
 		return msg, err
