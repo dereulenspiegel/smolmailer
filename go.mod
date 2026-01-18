@@ -2,16 +2,14 @@ module github.com/dereulenspiegel/smolmailer
 
 go 1.25.0
 
-replace github.com/khepin/liteq => ../liteq
-
 require (
 	github.com/asggo/spf v0.0.0-20200529014219-3e270ddb6136
+	github.com/dereulenspiegel/liteq v0.2.0
 	github.com/emersion/go-msgauth v0.7.0
 	github.com/emersion/go-sasl v0.0.0-20241020182733-b788ff22d5a6
 	github.com/emersion/go-smtp v0.23.0
 	github.com/go-crypt/crypt v0.4.1
 	github.com/inbucket/inbucket v2.0.0+incompatible
-	github.com/khepin/liteq v0.1.0
 	github.com/mattn/go-sqlite3 v1.14.28
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1

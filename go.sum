@@ -925,6 +925,8 @@ github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/denis-tingaikin/go-header v1.0.0 h1:QIwZWb3jLC6pOp9NEFldiD8raqRmCE/n0VUdZKW32x8=
 github.com/denis-tingaikin/go-header v1.0.0/go.mod h1:NT3qKwqsXQYp8WHVgkwxL49qB5jsRmdr9dGQCDfpmZ0=
+github.com/dereulenspiegel/liteq v0.2.0 h1:ygsPAsYrl3SK+7LNlh3QhGsF0DdEMW8Z7O41hOJVV3U=
+github.com/dereulenspiegel/liteq v0.2.0/go.mod h1:6V1u4khaM20SyT6mx2ryS7rC7QsgcqDpq9YK2EB4/rA=
 github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
 github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f h1:lO4WD4F/rVNCu3HqELle0jiPLLBs70cWOduZpkS1E78=
 github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f/go.mod h1:cuUVRXasLTGF7a8hSLbxyZXjz+1KgoB3wDUb6vlszIc=

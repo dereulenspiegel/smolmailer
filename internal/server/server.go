@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/dereulenspiegel/liteq"
 	"github.com/dereulenspiegel/smolmailer/acme"
 	"github.com/dereulenspiegel/smolmailer/internal/backend"
 	"github.com/dereulenspiegel/smolmailer/internal/config"
@@ -21,7 +22,6 @@ import (
 	"github.com/dereulenspiegel/smolmailer/internal/utils"
 	"github.com/emersion/go-msgauth/dkim"
 	"github.com/emersion/go-smtp"
-	"github.com/khepin/liteq"
 )
 
 type Server struct {

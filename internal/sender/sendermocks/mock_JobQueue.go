@@ -5,7 +5,7 @@ package sendermocks
 import (
 	context "context"
 
-	liteq "github.com/khepin/liteq"
+	liteq "github.com/dereulenspiegel/liteq"
 	mock "github.com/stretchr/testify/mock"
 )
 

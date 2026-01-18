@@ -7,11 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dereulenspiegel/liteq"
 	"github.com/dereulenspiegel/smolmailer/internal/backend"
 	"github.com/dereulenspiegel/smolmailer/internal/queue"
 	"github.com/dereulenspiegel/smolmailer/internal/queue/queuemocks"
 	"github.com/emersion/go-smtp"
-	"github.com/khepin/liteq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"

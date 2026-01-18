@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/dereulenspiegel/liteq"
 	"github.com/dereulenspiegel/smolmailer/internal/backend"
 	"github.com/dereulenspiegel/smolmailer/internal/queue"
 	"github.com/emersion/go-msgauth/dkim"
 	"github.com/emersion/go-smtp"
-	"github.com/khepin/liteq"
 )
 
 type ReceiveProcessor func(*backend.ReceivedMessage) (*backend.ReceivedMessage, error)

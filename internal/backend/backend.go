@@ -11,11 +11,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dereulenspiegel/liteq"
 	"github.com/dereulenspiegel/smolmailer/internal/config"
 	"github.com/dereulenspiegel/smolmailer/internal/queue"
 	"github.com/emersion/go-sasl"
 	"github.com/emersion/go-smtp"
-	"github.com/khepin/liteq"
 )
 
 type UserService interface {

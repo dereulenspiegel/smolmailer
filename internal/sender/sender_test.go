@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dereulenspiegel/liteq"
 	"github.com/dereulenspiegel/smolmailer/internal/config"
 	"github.com/dereulenspiegel/smolmailer/internal/queue"
 	"github.com/docker/go-connections/nat"
 	"github.com/emersion/go-smtp"
-	"github.com/khepin/liteq"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/inbucket"
