@@ -23,7 +23,7 @@ type PebbleContainer struct {
 
 func SetupPebble(ctx context.Context, dnsServer string) (*PebbleContainer, error) {
 	req := testcontainers.ContainerRequest{
-		Image:        "ghcr.io/letsencrypt/pebble:latest",
+		Image:        "ghcr.io/letsencrypt/pebble:2.9.0",
 		ExposedPorts: []string{"14000/tcp", "15000/tcp"},
 		WaitingFor:   wait.ForLog("ACME directory available at: .*").AsRegexp(),
 		Cmd:          []string{"-dnsserver", dnsServer},
@@ -114,9 +114,9 @@ type PebbleChallengeServer struct {
 
 func SetupPebbleChallengeServer(ctx context.Context) (*PebbleChallengeServer, error) {
 	req := testcontainers.ContainerRequest{
-		Image:        "ghcr.io/letsencrypt/pebble-challtestsrv:latest",
+		Image:        "ghcr.io/letsencrypt/pebble-challtestsrv:2.9.0",
 		ExposedPorts: []string{"8055/tcp", "8053/udp"},
-		WaitingFor:   wait.ForLog("Starting challenge servers"),
+		WaitingFor:   wait.ForAll(wait.ForLog("Starting challenge servers")),
 		Cmd:          []string{"-defaultIPv4", "127.0.0.1", "-defaultIPv6", "::1", "-dns01", "[::]:8053,:8053", "-http01", "", "-tlsalpn01", ""},
 	}
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
