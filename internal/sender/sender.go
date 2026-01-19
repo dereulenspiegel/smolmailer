@@ -89,8 +89,6 @@ func (s *Sender) run() {
 	}
 }
 
-const defaultRetryPeriod = time.Minute * 4
-
 func (s *Sender) trySend(ctx context.Context, msg *queue.QueuedMessage) error {
 	if msg.MailOpts == nil {
 		// TODO generate envelope id if missing
@@ -99,24 +97,27 @@ func (s *Sender) trySend(ctx context.Context, msg *queue.QueuedMessage) error {
 	logger := s.logger.With("from", msg.From, "to", msg.To, "msgid", msg.MailOpts.EnvelopeID)
 	logger.Info("sending mail")
 
-	retrySend := func(msg *queue.QueuedMessage, err error) {
-		msg.LastErr = err
-		msg.ErrorCount++
-		logger.Error("failed to deliver mail", "err", err, "errorCount", msg.ErrorCount)
-		if msg.ErrorCount >= maxRetries {
-			logger.Error("giving up delivering mail", "errorCount", msg.ErrorCount, "err", err)
-		}
-		attempts := maxRetries - msg.ErrorCount
-		if err := s.q.Queue(s.ctx, msg, liteq.Retries(attempts), liteq.ExecuteAfter(defaultRetryPeriod)); err != nil {
-			logger.Error("failed to requeue failed message", "err", err)
-		}
-	}
-
 	err := s.sendMail(msg)
 	if err != nil {
-		retrySend(msg, err)
+		logger.Error("failed to send outgoing message", "err", err)
+		return decideRetry(ctx, err)
 	}
 	return nil
+}
+
+const retryDuration = time.Hour * 12
+
+func decideRetry(ctx context.Context, err error) error {
+	if err == nil {
+		// Job finished successfully
+		return nil
+	}
+	startedAt, _ := ctx.Value(liteq.CtxJobCreatedAt).(time.Time)
+	if startedAt.Add(retryDuration).Before(time.Now()) {
+		// We should stop retrying and just communicate the last error
+		return err
+	}
+	return liteq.NewWorkerError(err, liteq.WithRemainingAttemps(1), liteq.WithRetryDelay(time.Minute*5))
 }
 
 func (s *Sender) dialHost(host string) (c *smtp.Client, err error) {
