@@ -54,7 +54,8 @@ MC4CAQAwBQYDK2VwBCIEIJhGWXSKnABUEcPSYV00xfxhR6sf/3iEsJfrOxE3H/3r
 
 	mxPort, err := nat.NewPort("tcp", "2500")
 	require.NoError(t, err)
-	smtpContainer, err := inbucket.Run(ctx, "inbucket/inbucket", testcontainers.WithWaitStrategy(wait.NewHostPortStrategy(mxPort)))
+	smtpContainer, err := inbucket.Run(ctx, "inbucket/inbucket", testcontainers.WithWaitStrategy(
+		wait.ForAll(wait.ForLog(`.*"SMTP listening on tcp4".*`).AsRegexp())))
 	require.NoError(t, err)
 	defer func() {
 		if err := testcontainers.TerminateContainer(smtpContainer); err != nil {
