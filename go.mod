@@ -14,7 +14,7 @@ require (
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.40.0
-	github.com/testcontainers/testcontainers-go/modules/inbucket v0.37.0
+	github.com/testcontainers/testcontainers-go/modules/inbucket v0.40.0
 	github.com/wneessen/go-mail v0.7.2
 )
 
