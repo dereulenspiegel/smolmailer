@@ -7,7 +7,7 @@ require (
 	github.com/dereulenspiegel/liteq v0.2.0
 	github.com/emersion/go-msgauth v0.7.0
 	github.com/emersion/go-sasl v0.0.0-20241020182733-b788ff22d5a6
-	github.com/emersion/go-smtp v0.23.0
+	github.com/emersion/go-smtp v0.24.0
 	github.com/go-crypt/crypt v0.4.7
 	github.com/inbucket/inbucket v2.0.0+incompatible
 	github.com/mattn/go-sqlite3 v1.14.33
