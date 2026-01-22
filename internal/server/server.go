@@ -75,8 +75,12 @@ func NewServer(ctx context.Context, logger *slog.Logger, cfg *config.Config) (*S
 		return nil, fmt.Errorf("failed to create send queue: %w", err)
 	}
 
-	if err := dns.VerifyValidDKIMRecords(cfg.MailDomain, cfg.Dkim); err != nil {
+	if result, err := dns.VerifyValidDKIMRecords(cfg.MailDomain, cfg.Dkim); err != nil {
 		logger.Error("failed to verify DKIM records", "err", err)
+	} else if !result.Success() {
+		logger.Warn("Please fix the DKIM DNS records", "create", result.Create, "delete", result.Delete, "update", result.Delete)
+	} else {
+		logger.Info("DKIM DNS records look good")
 	}
 
 	if err := dns.VerifySPFRecord(cfg.MailDomain, cfg.TlsDomain, cfg.SendAddr); err != nil {
