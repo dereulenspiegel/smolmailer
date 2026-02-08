@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"strings"
 
 	"github.com/asggo/spf"
@@ -160,34 +161,62 @@ func VerifyDKIMRecords(domain, value string) (*VerificationResult, error) {
 
 const defaultDNSQueryCount = 3
 
-func VerifySPFRecord(mailDomain, tlsdomain, sendAddr string) error {
+func VerifySPFRecord(mailDomain, tlsdomain, sendAddr string) (*VerificationResult, error) {
 	answer, err := resolve(mailDomain, dns.TypeTXT)
 	if err != nil {
-		return err
+		return nil, err
 	}
+	correctSPFFound := false
+	result := &VerificationResult{}
 
 	for _, a := range answer {
 		if rrTxt, ok := a.(*dns.TXT); ok {
 			for _, txtVal := range rrTxt.Txt {
-				if strings.HasPrefix(txtVal, "v=") {
+				if strings.HasPrefix(txtVal, "v=spf1") {
 					spfValue, err := spf.NewSPF(mailDomain, txtVal, defaultDNSQueryCount)
 					if err != nil {
+						result.Delete = append(result.Delete, ResourceRecord{
+							Type:   "TXT",
+							Domain: mailDomain,
+							Record: txtVal,
+						})
 						continue
 					}
 					spfResult := spfValue.Test(sendAddr)
 					switch spfResult {
 					case spf.Pass, spf.Neutral:
-						return nil
+						correctSPFFound = true
+						continue
 					case spf.Fail, spf.SoftFail, spf.None, spf.TempError, spf.PermError:
-						return ErrInvalidSPFRecord
+						result.Delete = append(result.Delete, ResourceRecord{
+							Type:   "TXT",
+							Domain: mailDomain,
+							Record: txtVal,
+						})
+						continue
 					default:
-						return errors.New("Additional spf check result, this should not be reachable")
+						return nil, errors.New("additional spf check result, this should not be reachable")
 					}
 				}
 			}
 		}
 	}
-	return ErrNoSPFRecord
+	senderIP, err := netip.ParseAddr(sendAddr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse sendAddr into IP: %w", err)
+	}
+	ipTypeStr := "ip4"
+	if senderIP.Is6() {
+		ipTypeStr = "ip6"
+	}
+	if !correctSPFFound {
+		result.Create = append(result.Create, ResourceRecord{
+			Type:   "TXT",
+			Domain: mailDomain,
+			Record: fmt.Sprintf("v=spf1 %s:%s -all", ipTypeStr, senderIP.String()),
+		})
+	}
+	return result, nil
 }
 
 func resolve(rrDomain string, rrType uint16) ([]dns.RR, error) {

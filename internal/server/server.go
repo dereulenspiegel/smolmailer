@@ -83,8 +83,12 @@ func NewServer(ctx context.Context, logger *slog.Logger, cfg *config.Config) (*S
 		logger.Info("DKIM DNS records look good")
 	}
 
-	if err := dns.VerifySPFRecord(cfg.MailDomain, cfg.TlsDomain, cfg.SendAddr); err != nil {
-		logger.Warn("spf records are not properly setup", "err", err)
+	if spfResult, err := dns.VerifySPFRecord(cfg.MailDomain, cfg.TlsDomain, cfg.SendAddr); err != nil {
+		logger.Warn("failed to verify spf records", "err", err)
+	} else if !spfResult.Success() {
+		logger.Warn("Please fix your SPF records", "create", spfResult.Create, "delete", spfResult.Delete, "update", spfResult.Update)
+	} else {
+		logger.Info("SPF records look good")
 	}
 
 	dkimSigners := []sender.ReceiveProcessor{}
