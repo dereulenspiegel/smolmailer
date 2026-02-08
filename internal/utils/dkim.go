@@ -54,6 +54,9 @@ func dnsDkimKey(publicKey crypto.PublicKey) (string, string, error) {
 	case *rsa.PublicKey:
 		keyType = "rsa"
 		pubkeyBytes = x509.MarshalPKCS1PublicKey(k)
+	case rsa.PublicKey:
+		keyType = "rsa"
+		pubkeyBytes = x509.MarshalPKCS1PublicKey(&k)
 	default:
 		return "", "", fmt.Errorf("unsupported public key type: %T", k)
 	}
