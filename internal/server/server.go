@@ -208,10 +208,12 @@ func dkimSignerForKey(cfg *config.Config, privKeyString string) sender.ReceivePr
 		panic(err)
 	}
 	return sender.DkimProcessor(&dkim.SignOptions{
-		Domain:   cfg.MailDomain,
-		Selector: cfg.Dkim.Selector,
-		Signer:   utils.Signer(dkimKey),
-		Hash:     crypto.SHA256,
+		Domain:                 cfg.MailDomain,
+		Selector:               cfg.Dkim.Selector,
+		Signer:                 utils.Signer(dkimKey),
+		HeaderCanonicalization: dkim.CanonicalizationRelaxed,
+		BodyCanonicalization:   dkim.CanonicalizationRelaxed,
+		Hash:                   crypto.SHA256,
 		HeaderKeys: []string{ // Recommended headers according to https://www.rfc-editor.org/rfc/rfc6376.html#section-5.4.1
 			"From", "Reply-to", "Subject", "Date", "To", "Cc", "Resent-Date", "Resent-From", "Resent-To", "Resent-Cc", "In-Reply-To", "References",
 			"List-Id", "List-Help", "List-Unsubscribe", "List-Subscribe", "List-Post", "List-Owner", "List-Archive",
