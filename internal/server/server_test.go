@@ -118,8 +118,16 @@ BALh4y+qYtjgTfnC9g1UshJoTEWh+9cQlgTXn67hazDzLmI4ic+QUy8UDymbgk4f
 		QueuePath:  filepath.Join(t.TempDir(), "queues"),
 		UserFile:   userFilePath,
 		Dkim: &config.DkimOpts{
-			Selector:    "smolmailer",
-			PrivateKeys: &config.DkimPrivateKeys{Ed25519: &config.PrivateKey{Value: dkimed25519Key}, RSA: &config.PrivateKey{Value: dkimRsaKey}},
+			Signer: map[string]*config.DkimSigner{
+				"ed25519": &config.DkimSigner{
+					Selector:   "smolmailer-ed25519",
+					PrivateKey: &config.PrivateKey{Value: dkimed25519Key},
+				},
+				"rsa": &config.DkimSigner{
+					Selector:   "smolmailer-rsa",
+					PrivateKey: &config.PrivateKey{Value: dkimRsaKey},
+				},
+			},
 		},
 		TestingOpts: &config.TestingOpts{
 			MxPorts: []int{containerPort.Int()},

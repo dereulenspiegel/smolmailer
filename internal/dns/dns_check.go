@@ -58,32 +58,27 @@ func newVerificarionResult() *VerificationResult {
 }
 
 func VerifyValidDKIMRecords(domain string, dkimConfig *config.DkimOpts) (*VerificationResult, error) {
-	ed25519PemString, err := dkimConfig.PrivateKeys.Ed25519.GetKey()
-	if err != nil {
-		return nil, err
-	}
-	dkimPrivKey, err := utils.ParseDkimKey(ed25519PemString)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse ed25519 private key: %w", err)
-	}
-	var ed25519Result *VerificationResult
-	if ed25519Result, err = verifyDkimRecordForKey(dkimConfig.Selector, domain, dkimPrivKey); err != nil {
-		return nil, err
+
+	mainResult := &VerificationResult{}
+
+	for _, signingConfig := range dkimConfig.Signer {
+		privKeyPem, err := signingConfig.PrivateKey.GetKey()
+		if err != nil {
+			return nil, fmt.Errorf("failed to retrieve private key: %w", err)
+		}
+
+		dkimPrivKey, err := utils.ParseDkimKey(privKeyPem)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse DKIM private key: %w", err)
+		}
+		dkimResult, err := verifyDkimRecordForKey(signingConfig.Selector, domain, dkimPrivKey)
+		if err != nil {
+			return nil, err
+		}
+		mainResult = mainResult.Merge(dkimResult)
 	}
 
-	rsaPemString, err := dkimConfig.PrivateKeys.RSA.GetKey()
-	if err != nil {
-		return nil, err
-	}
-	dkimPrivKey, err = utils.ParseDkimKey(rsaPemString)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse RSA private key: %w", err)
-	}
-	var rsaResult *VerificationResult
-	if rsaResult, err = verifyDkimRecordForKey(dkimConfig.Selector, domain, dkimPrivKey); err != nil {
-		return nil, err
-	}
-	return ed25519Result.Merge(rsaResult), nil
+	return mainResult, nil
 }
 
 func verifyDkimRecordForKey(selector, domain string, privKey crypto.PrivateKey) (*VerificationResult, error) {
@@ -98,27 +93,6 @@ func verifyDkimRecordForKey(selector, domain string, privKey crypto.PrivateKey) 
 
 func VerifyDKIMRecords(domain, value string) (*VerificationResult, error) {
 	result := newVerificarionResult()
-	config, _ := dns.ClientConfigFromFile("/etc/resolv.conf")
-	c := new(dns.Client)
-	m := new(dns.Msg)
-	if !strings.HasSuffix(domain, ".") {
-		domain = domain + "."
-	}
-	m.SetQuestion(domain, dns.TypeTXT)
-	m.RecursionDesired = true
-
-	r, _, err := c.Exchange(m, net.JoinHostPort(config.Servers[0], config.Port))
-	if err != nil {
-		return nil, fmt.Errorf("failed to contact DNS server: %w", err)
-	}
-	if r.Rcode != dns.RcodeSuccess {
-		result.Create = append(result.Create, ResourceRecord{
-			Type:   "TXT",
-			Domain: domain,
-			Record: value,
-		})
-		return result, nil
-	}
 
 	answer, err := resolve(domain, dns.TypeTXT)
 	if err != nil {

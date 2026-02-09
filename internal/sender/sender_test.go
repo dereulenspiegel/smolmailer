@@ -40,12 +40,14 @@ func TestDeliverMail(t *testing.T) {
 		MailDomain: "example.com",
 		QueuePath:  qDir,
 		Dkim: &config.DkimOpts{
-			Selector: "smolmailer",
-			PrivateKeys: &config.DkimPrivateKeys{
-				Ed25519: &config.PrivateKey{Value: `-----BEGIN PRIVATE KEY-----
+			Signer: map[string]*config.DkimSigner{
+				"ed25519": &config.DkimSigner{
+					Selector: "smolmailer",
+					PrivateKey: &config.PrivateKey{Value: `-----BEGIN PRIVATE KEY-----
 MC4CAQAwBQYDK2VwBCIEIJhGWXSKnABUEcPSYV00xfxhR6sf/3iEsJfrOxE3H/3r
 -----END PRIVATE KEY-----
 			`},
+				},
 			},
 		},
 	}, sq)

@@ -60,23 +60,31 @@ func (d *DkimPrivateKeys) IsValid() error {
 }
 
 type DkimOpts struct {
-	Selector    string           `mapstructure:"selector"`
-	PrivateKeys *DkimPrivateKeys `mapstructure:"privateKeys"`
-	//PrivateKey string `mapstructure:"privateKey"`
+	Signer map[string]*DkimSigner `mapstructure:"signer"`
+}
+
+type DkimSigner struct {
+	Selector   string      `mapstructure:"selector"`
+	PrivateKey *PrivateKey `mapstructure:"privateKey"`
 }
 
 func (d *DkimOpts) IsValid() error {
 	if d == nil {
 		return errors.New("dkim options are not set")
 	}
-	if d.Selector == "" {
-		return errors.New("DKIM selector must be set")
+	if len(d.Signer) == 0 {
+		return errors.New("no DKIM signer configured")
 	}
-	if d.PrivateKeys == nil {
-		return errors.New("DKIM private keys must be set")
-	}
-	if err := d.PrivateKeys.IsValid(); err != nil {
-		return err
+	for _, signer := range d.Signer {
+		if signer.PrivateKey == nil {
+			return errors.New("DKIM private key must be set")
+		}
+		if err := signer.PrivateKey.IsValid(); err != nil {
+			return err
+		}
+		if len(signer.Selector) == 0 {
+			return errors.New("DKIM selector must be set")
+		}
 	}
 	return nil
 }

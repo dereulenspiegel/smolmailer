@@ -92,17 +92,8 @@ func NewServer(ctx context.Context, logger *slog.Logger, cfg *config.Config) (*S
 	}
 
 	dkimSigners := []sender.ReceiveProcessor{}
-	ed25519PemKey, err := cfg.Dkim.PrivateKeys.Ed25519.GetKey()
-	if err != nil {
-		logger.Warn("no ed25519 dkim key configureds", "err", err)
-	} else {
-		dkimSigners = append(dkimSigners, dkimSignerForKey(cfg, ed25519PemKey))
-	}
-	rsaPemKey, err := cfg.Dkim.PrivateKeys.RSA.GetKey()
-	if err != nil {
-		logger.Warn("no rsa dkim key configured", "err", err)
-	} else {
-		dkimSigners = append(dkimSigners, dkimSignerForKey(cfg, rsaPemKey))
+	for _, signerConfig := range cfg.Dkim.Signer {
+		dkimSigners = append(dkimSigners, dkimSignerForKey(cfg.MailDomain, signerConfig))
 	}
 
 	s.processorHandler, err = sender.NewProcessorHandler(ctx, logger.With("component", "messageProcessing"), s.receiveQueue,
@@ -202,21 +193,24 @@ func (s *Server) Shutdown() error {
 	return errors.Join(errs...)
 }
 
-func dkimSignerForKey(cfg *config.Config, privKeyString string) sender.ReceiveProcessor {
-	dkimKey, err := utils.ParseDkimKey(privKeyString)
+func dkimSignerForKey(maildDomain string, cfg *config.DkimSigner) sender.ReceiveProcessor {
+	keyPem, err := cfg.PrivateKey.GetKey()
+	if err != nil {
+		panic(err)
+	}
+	dkimKey, err := utils.ParseDkimKey(keyPem)
 	if err != nil {
 		panic(err)
 	}
 	return sender.DkimProcessor(&dkim.SignOptions{
-		Domain:                 cfg.MailDomain,
-		Selector:               cfg.Dkim.Selector,
+		Domain:                 maildDomain,
+		Selector:               cfg.Selector,
 		Signer:                 utils.Signer(dkimKey),
 		HeaderCanonicalization: dkim.CanonicalizationRelaxed,
 		BodyCanonicalization:   dkim.CanonicalizationRelaxed,
 		Hash:                   crypto.SHA256,
 		HeaderKeys: []string{ // Recommended headers according to https://www.rfc-editor.org/rfc/rfc6376.html#section-5.4.1
 			"From", "Reply-to", "Subject", "Date", "To", "Cc", "Resent-Date", "Resent-From", "Resent-To", "Resent-Cc", "In-Reply-To", "References",
-			"List-Id", "List-Help", "List-Unsubscribe", "List-Subscribe", "List-Post", "List-Owner", "List-Archive",
 		},
 	})
 }
