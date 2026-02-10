@@ -48,6 +48,12 @@ func bindStructFieldsToEnv(baseName string, configStruct any, viperConf viperIf)
 					return err
 				}
 			}
+		case reflect.Map:
+			mapVal := y.FieldByName(field.Name)
+			for _, key := range mapVal.MapKeys() {
+				value := mapVal.MapIndex(key)
+				bindStructFieldsToEnv(concatenateConfigKeys(configPath, key.String()), value.Interface(), viperConf)
+			}
 		default:
 			if err := bindFieldToEnv(configPath, viperConf); err != nil {
 				return err

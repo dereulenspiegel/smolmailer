@@ -16,15 +16,20 @@ type testConfig struct {
 	SubConfig struct {
 		SubString string `mapstructure:"sub1"`
 	}
-	Sub             *subConfig2 `mapstructure:"sub2"`
-	unexportedField int         `mapstructure:"shouldntexist"` //nolint:golint,unused
+	Sub             *subConfig2                        `mapstructure:"sub2"`
+	unexportedField int                                `mapstructure:"shouldntexist"` //nolint:golint,unused
+	MapVars         map[string]struct{ MapVal string } `mapstructure:"mapVars"`
 }
 
 func TestBindEnvToStruct(t *testing.T) {
-	cfg := &testConfig{}
+	cfg := &testConfig{
+		MapVars: map[string]struct{ MapVal string }{
+			"mapKey": {"mapVal"},
+		},
+	}
 
 	viperCfg := new(viperIfMock)
-	for _, bindName := range []string{"string1", "int2", "SubConfig.sub1", "sub2.val"} {
+	for _, bindName := range []string{"string1", "int2", "SubConfig.sub1", "sub2.val", "mapVars.mapKey.MapVal"} {
 		viperCfg.On("BindEnv", bindName).Once().Return(nil)
 	}
 
