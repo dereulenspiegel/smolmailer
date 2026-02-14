@@ -22,16 +22,14 @@ type testConfig struct {
 }
 
 func TestBindEnvToStruct(t *testing.T) {
-	cfg := &testConfig{
-		MapVars: map[string]struct{ MapVal string }{
-			"mapKey": {"mapVal"},
-		},
-	}
+	cfg := &testConfig{}
 
+	t.Setenv("SMOLMAILER_MAPVARS_MAPKEY_MAPVAL", "mapVal")
 	viperCfg := newViperIfMock(t)
-	for _, bindName := range []string{"string1", "int2", "SubConfig.sub1", "sub2.val", "mapVars.mapKey.MapVal"} {
+	for _, bindName := range []string{"string1", "int2", "SubConfig.sub1", "sub2.val", "mapVars.mapkey.MapVal"} {
 		viperCfg.On("BindEnv", bindName).Once().Return(nil)
 	}
+	viperCfg.EXPECT().GetEnvPrefix().Return("SMOLMAILER")
 
 	err := BindStructToEnv(cfg, viperCfg)
 	require.NoError(t, err)
