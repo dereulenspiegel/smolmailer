@@ -10,7 +10,7 @@ require (
 	github.com/emersion/go-smtp v0.24.0
 	github.com/go-crypt/crypt v0.4.8
 	github.com/inbucket/inbucket v2.0.0+incompatible
-	github.com/mattn/go-sqlite3 v1.14.33
+	github.com/mattn/go-sqlite3 v1.14.34
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.40.0
