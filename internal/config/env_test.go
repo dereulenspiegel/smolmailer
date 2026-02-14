@@ -28,7 +28,7 @@ func TestBindEnvToStruct(t *testing.T) {
 		},
 	}
 
-	viperCfg := new(viperIfMock)
+	viperCfg := newViperIfMock(t)
 	for _, bindName := range []string{"string1", "int2", "SubConfig.sub1", "sub2.val", "mapVars.mapKey.MapVal"} {
 		viperCfg.On("BindEnv", bindName).Once().Return(nil)
 	}
@@ -60,4 +60,12 @@ func TestConcatenateConfigKeys(t *testing.T) {
 		configPath := concatenateConfigKeys(testCfg.keys...)
 		assert.Equal(t, testCfg.expectedPath, configPath)
 	}
+}
+
+func TestDiscoverMapKeys(t *testing.T) {
+	t.Setenv("SMOLMAILER_DKIM_SIGNER__RSA_SELECTOR", "foo")
+
+	mapKeys := getPossibleMapKeys("dkim.signer", "SMOLMAILER")
+	require.Len(t, mapKeys, 1)
+	assert.Contains(t, mapKeys, "rsa")
 }

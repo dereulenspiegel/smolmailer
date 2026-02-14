@@ -15,3 +15,9 @@ packages:
     interfaces:
       GenericQueue:
       GenericWorkQueue:
+  github.com/dereulenspiegel/smolmailer/internal/config:
+    config:
+      all: True
+      dir: "{{.InterfaceDir}}"
+      outpkg: "{{.PackageName}}"
+      filename: "mock_{{.InterfaceName}}_test.go"

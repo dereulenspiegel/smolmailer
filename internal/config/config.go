@@ -141,6 +141,7 @@ func ConfigDefaults() {
 
 	viper.SetEnvPrefix("SMOLMAILER")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	viper.AutomaticEnv()
 	if err := BindStructToEnv(&Config{}, viper.GetViper()); err != nil {
 		panic(fmt.Errorf("failed to bind config to environment: %w", err))
 	}

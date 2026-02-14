@@ -2,12 +2,14 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 )
 
 type viperIf interface {
 	BindEnv(input ...string) error
+	GetEnvPrefix() string
 }
 
 func BindStructToEnv(configStruct any, viperConf viperIf) error {
@@ -49,10 +51,12 @@ func bindStructFieldsToEnv(baseName string, configStruct any, viperConf viperIf)
 				}
 			}
 		case reflect.Map:
-			mapVal := y.FieldByName(field.Name)
-			for _, key := range mapVal.MapKeys() {
-				value := mapVal.MapIndex(key)
-				bindStructFieldsToEnv(concatenateConfigKeys(configPath, key.String()), value.Interface(), viperConf)
+			mapValType := field.Type.Elem()
+			mapKeys := getPossibleMapKeys(configPath, viperConf.GetEnvPrefix())
+
+			for _, key := range mapKeys {
+				val := reflect.New(mapValType)
+				bindStructFieldsToEnv(concatenateConfigKeys(configPath, key), val.Elem().Interface(), viperConf)
 			}
 		default:
 			if err := bindFieldToEnv(configPath, viperConf); err != nil {
@@ -61,6 +65,25 @@ func bindStructFieldsToEnv(baseName string, configStruct any, viperConf viperIf)
 		}
 	}
 	return nil
+}
+
+func getPossibleMapKeys(configPath string, envPrefix string) []string {
+	envVars := os.Environ()
+	configEnv := strings.ToUpper(strings.ReplaceAll(envPrefix+"_"+configPath, ".", "_"))
+
+	mapKeys := make([]string, 0, 10)
+
+	for _, envVar := range envVars {
+		if strings.HasPrefix(envVar, configEnv) {
+			baseEnv := strings.Replace(envVar, configEnv, "", 1)
+			baseEnv = strings.TrimLeft(baseEnv, "_")
+			configPaths := strings.Split(baseEnv, "_")
+			if len(configPaths) > 0 {
+				mapKeys = append(mapKeys, strings.ToLower(configPaths[0]))
+			}
+		}
+	}
+	return mapKeys
 }
 
 func bindFieldToEnv(configPath string, viperConf viperIf) error {
