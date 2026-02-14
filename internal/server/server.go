@@ -193,7 +193,7 @@ func (s *Server) Shutdown() error {
 	return errors.Join(errs...)
 }
 
-func dkimSignerForKey(maildDomain string, cfg *config.DkimSigner) sender.ReceiveProcessor {
+func dkimSignerForKey(mailDomain string, cfg *config.DkimSigner) sender.ReceiveProcessor {
 	keyPem, err := cfg.PrivateKey.GetKey()
 	if err != nil {
 		panic(err)
@@ -203,7 +203,7 @@ func dkimSignerForKey(maildDomain string, cfg *config.DkimSigner) sender.Receive
 		panic(err)
 	}
 	return sender.DkimProcessor(&dkim.SignOptions{
-		Domain:                 maildDomain,
+		Domain:                 mailDomain,
 		Selector:               cfg.Selector,
 		Signer:                 utils.Signer(dkimKey),
 		HeaderCanonicalization: dkim.CanonicalizationRelaxed,
