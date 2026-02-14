@@ -115,7 +115,7 @@ func VerifyDKIMRecords(domain, value string) (*VerificationResult, error) {
 			}
 		}
 	}
-	if compoundResource == value {
+	if compoundResource != value {
 		result.Create = append(result.Update, ResourceRecord{
 			Type:   "TXT",
 			Domain: domain,
