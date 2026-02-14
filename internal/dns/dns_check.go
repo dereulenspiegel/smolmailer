@@ -107,24 +107,16 @@ func VerifyDKIMRecords(domain, value string) (*VerificationResult, error) {
 		return nil, err
 	}
 
-	validFound := false
+	compoundResource := ""
 	for _, a := range answer {
 		if rrTxt, ok := a.(*dns.TXT); ok {
 			for _, txtVal := range rrTxt.Txt {
-				if txtVal != value {
-					result.Delete = append(result.Delete, ResourceRecord{
-						Type:   "TXT",
-						Domain: domain,
-						Record: txtVal,
-					})
-				} else {
-					validFound = true
-				}
+				compoundResource += txtVal
 			}
 		}
 	}
-	if !validFound {
-		result.Create = append(result.Create, ResourceRecord{
+	if compoundResource == value {
+		result.Create = append(result.Update, ResourceRecord{
 			Type:   "TXT",
 			Domain: domain,
 			Record: value,
