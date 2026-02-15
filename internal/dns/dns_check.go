@@ -21,6 +21,12 @@ var (
 	ErrRecordNotFound   = errors.New("record not found")
 )
 
+var resolve func(string, uint16) ([]dns.RR, error)
+
+func init() {
+	resolve = defaultResolve
+}
+
 type ResourceRecord struct {
 	Type   string
 	Domain string
@@ -185,7 +191,7 @@ func VerifySPFRecord(mailDomain, tlsdomain, sendAddr string) (*VerificationResul
 	return result, nil
 }
 
-func resolve(rrDomain string, rrType uint16) ([]dns.RR, error) {
+func defaultResolve(rrDomain string, rrType uint16) ([]dns.RR, error) {
 	config, _ := dns.ClientConfigFromFile("/etc/resolv.conf")
 	c := new(dns.Client)
 	m := new(dns.Msg)
