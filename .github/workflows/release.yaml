@@ -31,10 +31,10 @@ jobs:
           registry-password: ${{ secrets.GITHUB_TOKEN }}
       - name: Create release on GitHub
         shell: bash
-        run: |
+        run: | # zizmor: ignore[template-injection]
           gh release create --draft --generate-notes --latest ${{ github.ref_name }}
       - name: Mark release as prerelease
         if: ${{ contains( github.ref_name, 'rc') }}
         shell: bash
-        run: |
+        run: | # zizmor: ignore[template-injection]
           gh release edit --prerelease ${{ github.ref_name }}

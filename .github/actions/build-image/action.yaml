@@ -33,6 +33,4 @@ runs:
       with:
         platforms: linux/amd64,linux/arm64
         push: true
-        tags:
-          - ghcr.io/dereulenspiegel/smolmailer:${{ inputs.latest-tag }}
-          - ghcr.io/dereulenspiegel/smolmailer:${{ inputs.tag }}
+        tags: ghcr.io/dereulenspiegel/smolmailer:${{ inputs.latest-tag }}, ghcr.io/dereulenspiegel/smolmailer:${{ inputs.tag }}
