@@ -10,9 +10,8 @@ jobs:
   ci:
     permissions:
       contents: read
-      packages: write
     uses: ./.github/workflows/ci.yaml
-  goreleaser:
+  release-image:
     permissions:
       contents: write
       packages: write
@@ -23,25 +22,19 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           persist-credentials: false
-      - name: Set up Go
-        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # zizmor: ignore[cache-poisoning]
+      - name: Build and push release image
+        uses: ./.github/actions/build-image
         with:
-          go-version: stable
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # zizmor: ignore[cache-poisoning]
-      - name: GHCR Login
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a
-        with:
-          distribution: goreleaser
-          version: "latest"
-          args: release --clean
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ github.ref_name }}
+          latest-tag: latest
+          registry-username: ${{ github.actor }}
+          registry-password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create release on GitHub
+        shell: bash
+        run: |
+          gh release create --draft --generate-notes --latest ${{ github.ref_name }}
+      - name: Mark release as prerelease
+        if: ${{ contains( github.ref_name, 'rc') }}
+        shell: bash
+        run: |
+          gh release edit --prerelease ${{ github.ref_name }}
