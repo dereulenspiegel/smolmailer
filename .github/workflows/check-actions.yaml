@@ -12,6 +12,7 @@ jobs:
   zizmor:
     name: zizmor latest via PyPI
     runs-on: ubuntu-latest
+    if: ${{ !always() }}
     permissions:
       security-events: write
       # required for workflows in private repositories
