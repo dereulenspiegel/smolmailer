@@ -12,6 +12,8 @@ jobs:
       contents: read
     uses: ./.github/workflows/ci.yaml
   release-image:
+    env:
+      GH_TOKEN: ${{ github.token }}
     permissions:
       contents: write
       packages: write
