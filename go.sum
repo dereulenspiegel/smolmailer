@@ -1084,8 +1084,8 @@ github.com/go-acme/tencentedgdeone v1.3.38/go.mod h1:yyjTKVmGpMtFv5HqGODqehHnZJ4
 github.com/go-cmd/cmd v1.0.5/go.mod h1:y8q8qlK5wQibcw63djSl/ntiHUHXHGdCkPk0j4QeW4s=
 github.com/go-critic/go-critic v0.14.3 h1:5R1qH2iFeo4I/RJU8vTezdqs08Egi4u5p6vOESA0pog=
 github.com/go-critic/go-critic v0.14.3/go.mod h1:xwntfW6SYAd7h1OqDzmN6hBX/JxsEKl5up/Y2bsxgVQ=
-github.com/go-crypt/crypt v0.4.10 h1:bJiJ9MRrKjHQEfbZMT+Q/XkwxoU3oahCJv1eLJ4u0UU=
-github.com/go-crypt/crypt v0.4.10/go.mod h1:KHr1XXnCbQ3rkNhoJovldRd3mbLSnkuAeAPmrTBvxKI=
+github.com/go-crypt/crypt v0.4.11 h1:QQklyjTKioX1tTROaBgvk68/R+bDh4HQoqYeSlbmhic=
+github.com/go-crypt/crypt v0.4.11/go.mod h1:KHr1XXnCbQ3rkNhoJovldRd3mbLSnkuAeAPmrTBvxKI=
 github.com/go-crypt/x v0.4.13 h1:aE4ieFDpDoHKzF1qKOhadZAS8GHZR6bSxUkKVOdIx1c=
 github.com/go-crypt/x v0.4.13/go.mod h1:KWDO2p5WT94GKRj6fdNo7+XKTya53zfxCB1V3e2B9hU=
 github.com/go-errors/errors v1.0.1/go.mod h1:f4zRHt4oKfwPJE5k8C9vpYG+aDHdBFUsgrm6/TyX73Q=
