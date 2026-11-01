@@ -15,7 +15,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.41.0
 	github.com/testcontainers/testcontainers-go/modules/inbucket v0.41.0
-	github.com/wneessen/go-mail v0.7.3
+	github.com/wneessen/go-mail v0.8.1
 )
 
 require (
